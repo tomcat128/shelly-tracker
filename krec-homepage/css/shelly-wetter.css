@@ -180,6 +180,24 @@
   width: 100%;
   height: 100%;
 }
+/* Zeiger dreht zur neuen Windrichtung (leichtes Überschwingen wie eine Kompassnadel),
+   der Pfeil darin pendelt um die Richtung; Werte für --schwank/--dauer setzt das Skript */
+#wetter-box .rose-zeiger {
+  position: absolute;
+  inset: 0;
+  transition: transform 1.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+#wetter-box .rose-zeiger .rose-pfeil {
+  animation: wind-pendeln var(--dauer, 3s) ease-in-out infinite alternate;
+}
+@keyframes wind-pendeln {
+  from { transform: rotate(calc(var(--schwank, 3deg) * -1)); }
+  to   { transform: rotate(var(--schwank, 3deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #wetter-box .rose-zeiger { transition: none; }
+  #wetter-box .rose-zeiger .rose-pfeil { animation: none; }
+}
 #wetter-box .wind-details { display: flex; flex-direction: column; gap: 2px; }
 
 /* Mittlere Breite: Anschrift oben, darunter Hallendaten und Wetter nebeneinander */

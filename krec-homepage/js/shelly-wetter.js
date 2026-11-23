@@ -1,5 +1,5 @@
 // Rollsportanlage: Hallendaten (BLU H&T) und Wetter (WS90)
-// Holt die Daten alle 5 Minuten von /shelly-api/data.php und füllt
+// Holt die Daten jede Minute von /shelly-api/data.php und füllt
 // <div id="hallen-box"> und <div id="wetter-box">.
 // Einbinden mit: <script src="/js/shelly-wetter.js" defer></script>
 
@@ -124,12 +124,27 @@
   var BEAUFORT_KMH = ['unter 1', '1–5', '6–11', '12–19', '20–28', '29–38', '39–49', '50–61',
     '62–74', '75–88', '89–102', '103–117', 'ab 118'];
 
-  // Windrose: Pfeil kommt aus der Windrichtung und zeigt, wohin der Wind weht
+  // Zuletzt angezeigter Winkel des Pfeils (fortlaufend, kann über 360 hinausgehen),
+  // damit er bei jeder Aktualisierung von dort aus zur neuen Richtung dreht
+  var letzterWinkel = null;
+
+  function begrenzt(wert, min, max) { return Math.min(max, Math.max(min, wert)); }
+
+  // Windrose: Pfeil kommt aus der Windrichtung und zeigt, wohin der Wind weht.
+  // Der Zeiger dreht beim Laden aus der alten Richtung in die neue (kürzester Weg),
+  // der Pfeil darin pendelt leicht: stärker bei Böen, schneller bei mehr Wind.
   function windrose(w) {
     var html = '<span class="windrose" role="img" aria-label="Windrose">' + icon('windrose', 'rose-scheibe');
     if (w.beaufort > 0 && w.wind_richtung_grad !== null) {
-      html += '<img class="rose-pfeil" src="' + ICON_PFAD + 'windrose-pfeil.svg" alt="" aria-hidden="true" ' +
-        'style="transform: rotate(' + Number(w.wind_richtung_grad) + 'deg)">';
+      var start = letzterWinkel === null ? 0 : letzterWinkel;
+      var ziel = start + ((((Number(w.wind_richtung_grad) - start) % 360) + 540) % 360) - 180;
+      letzterWinkel = ziel;
+      var boeenPlus = w.boeen_kmh !== null ? Math.max(0, w.boeen_kmh - w.wind_kmh) : 0;
+      var schwank = begrenzt(2 + boeenPlus / 2, 2, 12);
+      var dauer = begrenzt(4 - w.wind_kmh / 15, 1.2, 4);
+      html += '<span class="rose-zeiger" style="transform: rotate(' + start + 'deg)" data-ziel="' + ziel + '">' +
+        '<img class="rose-pfeil" src="' + ICON_PFAD + 'windrose-pfeil.svg" alt="" aria-hidden="true" ' +
+        'style="--schwank: ' + schwank.toFixed(1) + 'deg; --dauer: ' + dauer.toFixed(1) + 's"></span>';
     } else {
       html += icon('windrose-still', 'rose-pfeil');
     }
@@ -203,6 +218,13 @@
         return '<dt>' + icon(z[0]) + z[1] + '</dt><dd>' + z[2] + '</dd>';
       }).join('') + '</dl>' +
       standZeile(w.stand, w.online);
+
+    // Zeiger erst nach dem Einfügen auf den Zielwinkel setzen, damit die CSS-Transition greift
+    var zeiger = wetterBox.querySelector('.rose-zeiger');
+    if (zeiger) {
+      void zeiger.offsetWidth;
+      zeiger.style.transform = 'rotate(' + zeiger.getAttribute('data-ziel') + 'deg)';
+    }
   }
 
   function laden() {
@@ -223,5 +245,5 @@
   }
 
   laden();
-  setInterval(laden, 5 * 60 * 1000); // alle 5 Minuten aktualisieren
+  setInterval(laden, 60 * 1000); // jede Minute aktualisieren
 })();
