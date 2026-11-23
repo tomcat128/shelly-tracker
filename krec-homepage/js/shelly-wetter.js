@@ -120,6 +120,9 @@
   var BEAUFORT_NAMEN = ['Windstille', 'leiser Zug', 'leichte Brise', 'schwache Brise', 'mäßige Brise',
     'frische Brise', 'starker Wind', 'steifer Wind', 'stürmischer Wind', 'Sturm', 'schwerer Sturm',
     'orkanartiger Sturm', 'Orkan'];
+  // km/h-Bereich je Beaufort-Stufe (passend zu den Grenzen in data.php)
+  var BEAUFORT_KMH = ['unter 1', '1–5', '6–11', '12–19', '20–28', '29–38', '39–49', '50–61',
+    '62–74', '75–88', '89–102', '103–117', 'ab 118'];
 
   // Windrose: Pfeil kommt aus der Windrichtung und zeigt, wohin der Wind weht
   function windrose(w) {
@@ -143,7 +146,8 @@
       if (w.boeen_kmh !== null && w.boeen_kmh >= 10) {  // kleine Böen nicht erwähnen
         zeilen.push('Böen bis ' + zahl(w.boeen_kmh, 0) + '&nbsp;km/h');
       }
-      zeilen.push('<span class="nebenwert">' + w.beaufort + '&nbsp;Bft · ' + BEAUFORT_NAMEN[w.beaufort] + '</span>');
+      zeilen.push('<span class="nebenwert">' + BEAUFORT_NAMEN[w.beaufort] +
+        ' (' + BEAUFORT_KMH[w.beaufort] + '&nbsp;km/h)</span>');
     }
     return '<div class="wind-block">' + windrose(w) +
       '<div class="wind-details"><div>' + icon('wind') + 'Wind</div>' +
