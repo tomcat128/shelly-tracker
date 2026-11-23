@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <title>sonnig</title>
-  <circle cx="32" cy="32" r="19.5" fill="#fde293" opacity="0.75"/>
-  <circle cx="32" cy="32" r="15" fill="#fbbc04"/>
+  <defs>
+    <linearGradient id="wolke" gradientUnits="userSpaceOnUse" x1="0" y1="14" x2="0" y2="46"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cdd7e3"/></linearGradient>
+    <linearGradient id="wolke2" gradientUnits="userSpaceOnUse" x1="0" y1="14" x2="0" y2="46"><stop offset="0" stop-color="#c2ccd8"/><stop offset="1" stop-color="#8f9dae"/></linearGradient>
+    <radialGradient id="sonne" cx="0.38" cy="0.35" r="0.75"><stop offset="0" stop-color="#fff27a"/><stop offset="1" stop-color="#ff9f0f"/></radialGradient>
+    <linearGradient id="tropfen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fcbff"/><stop offset="1" stop-color="#1d6fe0"/></linearGradient>
+    <radialGradient id="mond" cx="0.38" cy="0.35" r="0.75"><stop offset="0" stop-color="#fff6c4"/><stop offset="1" stop-color="#f0b400"/></radialGradient>
+    <filter id="schatten" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="1.6" stdDeviation="1.4" flood-color="#30455f" flood-opacity="0.35"/></filter>
+  </defs>
+  <path d="M48.00 32.00L53.00 32.00M43.31 43.31L46.85 46.85M32.00 48.00L32.00 53.00M20.69 43.31L17.15 46.85M16.00 32.00L11.00 32.00M20.69 20.69L17.15 17.15M32.00 16.00L32.00 11.00M43.31 20.69L46.85 17.15" stroke="#ffb31a" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="12" fill="url(#sonne)" filter="url(#schatten)"/>
 </svg>

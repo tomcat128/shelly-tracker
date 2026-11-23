@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <title>Schneeregen</title>
-  <g transform="translate(3.5 -6) scale(0.9)">
-    <g fill="#bfcbd9" transform="translate(0 2.6)"><circle cx="21" cy="36" r="9"/><circle cx="33" cy="27" r="12.5"/><circle cx="44" cy="36.5" r="8.5"/><rect x="21" y="33" width="23" height="12"/></g>
-    <g fill="#ffffff"><circle cx="21" cy="36" r="9"/><circle cx="33" cy="27" r="12.5"/><circle cx="44" cy="36.5" r="8.5"/><rect x="21" y="33" width="23" height="12"/></g>
-  </g>
-  <path d="M23.88 45.75l-3.75 6.50M43.88 45.75l-3.75 6.50" stroke="#3b82f6" stroke-width="3.4" stroke-linecap="round" fill="none"/>
-  <path d="M-0.00 -4.00L0.00 4.00M-3.46 -2.00L3.46 2.00M3.46 -2.00L-3.46 2.00" transform="translate(32 49)" stroke="#5b9ef5" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-</svg>
