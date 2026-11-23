@@ -71,7 +71,9 @@ starten: `docker compose restart`.
 | `metrics`  | Messwerte (Alias oder Rohpfad), Wildcards erlaubt | `metrics=temperature,wind*` |
 | `format`   | `json` (Standard), `csv` (lang: eine Zeile pro Wert), `csv-wide` (eine Spalte pro Messwert) | `format=csv-wide` |
 | `order`    | `asc` / `desc` | `order=desc` |
-| `limit`    | max. Messungen pro Gerät (Standard 10000) | `limit=500` |
+| `limit`    | max. Messungen bzw. Zeitabschnitte pro Gerät (Standard 10000) | `limit=500` |
+| `interval` | Werte zu Zeitabschnitten zusammenfassen: `15m`, `1h`, `6h`, `1d`, `1w`, `1mo` (braucht `from`/`to`) | `interval=1h` |
+| `agg`      | mit `interval`: `avg` (Standard), `min`, `max`, kommagetrennt kombinierbar | `agg=avg,min,max` |
 
 Sobald `from` oder `to` angegeben ist, wird der Zeitraum geliefert, sonst nur der letzte Wert.
 Zeitangaben ohne Zeitzone werden in `TIMEZONE` (Standard `Europe/Berlin`) interpretiert, und die
@@ -83,7 +85,26 @@ Beispiele:
 curl 'http://localhost:9090/api/export'
 curl 'http://localhost:9090/api/export?devices=WS90&from=24h'
 curl 'http://localhost:9090/api/export?devices=HT1&from=2026-11-01&to=2026-11-07&format=csv-wide' -o ht1.csv
+# Tageswerte (Mittel, Minimum, Maximum) der Temperatur über ein Jahr
+curl 'http://localhost:9090/api/export?devices=WS90&from=2025-11-23&interval=1d&agg=avg,min,max&metrics=temperature'
 ```
+
+### Zusammenfassen über lange Zeiträume (`interval`)
+
+Ohne `interval` liefert der Export jede einzelne Messung, also etwa eine pro Minute. Für Wochen,
+Monate oder Jahre ist das zu viel: 1 Jahr sind 525.600 Messungen pro Gerät, und `limit` schneidet
+nach 10.000 ab (etwa 7 Tage). Mit `interval` fasst die Datenbank die Werte je Zeitabschnitt zusammen:
+
+- Stunden, Tage, Wochen (ab Montag) und Monate beginnen in der Zeitzone `TIMEZONE`, auch über
+  Sommer- und Winterzeit hinweg. `ts` ist der Beginn des Abschnitts.
+- `readings` gibt an, wie viele Messungen in den Abschnitt eingeflossen sind.
+- Mit einer Funktion (`agg=avg`) heißen die Werte wie gewohnt (`temperature`). Mit mehreren
+  bekommen sie ein Suffix: `temperature_avg`, `temperature_min`, `temperature_max`.
+- Hinweise zu einzelnen Messwerten:
+  - `wind_direction`: Der Mittelwert ist hier nicht aussagekräftig, weil die Richtung im Kreis
+    läuft (350° und 10° ergeben 180°).
+  - `rain_total`: Der Wert ist eine laufende Summe. `max` liefert den Stand am Ende des Abschnitts,
+    die Differenz zweier Abschnitte die Regenmenge dazwischen.
 
 Antwort (letzte Werte):
 
@@ -99,7 +120,8 @@ Antwort (letzte Werte):
 }
 ```
 
-Weitere Endpunkte: `GET /health`, `GET /api/devices`, `POST /api/poll` (sofort abrufen).
+Weitere Endpunkte: `GET /health`, `GET /api/devices`, `POST /api/poll` (sofort abrufen),
+`POST /api/rollup` (Stundenwerte und Aufbewahrung sofort ausführen).
 
 ### Absicherung
 
@@ -119,6 +141,7 @@ Wenn die App aus dem Internet erreichbar ist, gehört sie hinter einen Reverse-P
 | `TIMEZONE` | `Europe/Berlin` | Zeitzone für Ein-/Ausgabe |
 | `API_TOKEN` | leer | Token für die API |
 | `STORE_RAW` | `false` | Roh-JSON jeder Messung speichern |
+| `RAW_RETENTION_MONTHS` | `18` | Minutenwerte so viele Monate aufbewahren, danach nur Stundenwerte; `0` = nie löschen |
 | `SKIP_UNCHANGED` | `true` | identische Werte ohne Geräte-Zeitstempel nicht erneut speichern |
 | `PUID` / `PGID` | `1000` | Besitzer der Dateien in `./data` |
 | `HOST_PORT` | `9090` | Port auf dem Host |
@@ -129,13 +152,36 @@ Wenn die App aus dem Internet erreichbar ist, gehört sie hinter einen Reverse-P
 - `readings`: eine Messung pro Gerät und Zeitpunkt. Der Zeitpunkt kommt aus dem Gerät, wenn er im
   Status enthalten ist, sonst ist es die Abrufzeit. Doppelte Messungen werden verworfen.
 - `measurements`: Messwerte (`metric`, `value`) einer Messung
+- `hourly_stats`: Stundenwerte pro Gerät, Stunde und Messwert (Anzahl, Summe, Minimum, Maximum)
+
+### Stundenwerte und Aufbewahrung
+
+Ein Hintergrund-Job läuft eine Minute nach dem Start und danach stündlich. Er fasst jede
+abgeschlossene Stunde in `hourly_stats` zusammen. Exporte mit `interval` ab `1h` lesen aus dieser
+kleinen Tabelle und bleiben deshalb auch über Jahre schnell.
+
+Minutenwerte, die älter als `RAW_RETENTION_MONTHS` sind (Standard 18 Monate), löscht der Job, weil
+ihre Stundenwerte bereits gespeichert sind. Für diese Zeit gilt:
+
+- Mittel, Minimum und Maximum pro Stunde, Tag, Woche und Monat bleiben exakt erhalten.
+- Einzelne Minutenwerte und Zusammenfassungen feiner als 1 h gibt es nicht mehr. `interval=15m`
+  liefert dort einen Wert pro Stunde.
+- Ein Export ohne `interval` enthält nur noch vorhandene Minutenwerte. In der Antwort steht dann
+  `hourly_only_before` mit einem Hinweis (`note`).
+- **Das Löschen ist endgültig.** Wer die Minutenwerte behalten will, setzt `RAW_RETENTION_MONTHS=0`.
+
+Den Job kannst du mit `POST /api/rollup` sofort auslösen.
+
+Datenmenge mit WS90 und BLU H&T bei einer Messung pro Minute: etwa 1,2 MB pro Tag. Mit dem Standard
+von 18 Monaten bleibt die Datenbank dauerhaft bei etwa 0,7 GB, danach wächst sie nur noch um rund
+13 MB pro Jahr. Ältere Datenbanken stellt die App beim Start automatisch auf das kompaktere Format um.
 
 ## Backup
 
 Alle Daten liegen in `./data`. Für ein konsistentes Backup im laufenden Betrieb:
 
 ```bash
-docker compose exec shelly-tracker python -c \
+docker compose exec -T -u shelly shelly-tracker python -c \
   "import sqlite3; s=sqlite3.connect('/data/shelly.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d)"
 ```
 

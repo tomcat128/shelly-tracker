@@ -13,6 +13,7 @@ from .web import router as web_router
 from .config import Settings, load_settings
 from .db import init_db, make_engine
 from .poller import Poller, sync_devices
+from .rollup import RollupJob
 from .shelly import ShellyCloud
 
 logging.basicConfig(
@@ -43,11 +44,13 @@ def create_app(settings: Settings | None = None, cloud: ShellyCloud | None = Non
             settings.request_timeout,
         )
         poller = Poller(settings, session_factory, client)
+        rollup = RollupJob(session_factory, settings.raw_retention_months)
 
         app.state.settings = settings
         app.state.tz = ZoneInfo(settings.timezone)
         app.state.session_factory = session_factory
         app.state.poller = poller
+        app.state.rollup = rollup
         log.info(
             "Tracking %d device(s): %s",
             len(settings.devices),
@@ -55,9 +58,11 @@ def create_app(settings: Settings | None = None, cloud: ShellyCloud | None = Non
         )
         if start_poller:
             poller.start()
+            rollup.start()
         try:
             yield
         finally:
+            rollup.stop()
             poller.stop()
             client.close()
             engine.dispose()

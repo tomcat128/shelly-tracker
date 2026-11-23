@@ -74,6 +74,8 @@ PAGE = """<!doctype html>
       {badge}
       <span class="muted">Letzter Abruf: {last_poll} · Intervall {interval} s · {device_count} Gerät(e)</span>
     </div>
+    <div class="muted" style="margin-top:6px">{retention}
+    </div>
     {error}
   </section>
 
@@ -157,6 +159,11 @@ def index(request: Request) -> HTMLResponse:
         error=error,
         last_poll=escape(_short(fmt_time(poller.last_run, tz)) or "–"),
         interval=settings.poll_interval,
+        retention=(
+            f"Minutenwerte werden {settings.raw_retention_months} Monate aufbewahrt, ältere als Stundenwerte"
+            if settings.raw_retention_months
+            else "Minutenwerte werden unbegrenzt aufbewahrt"
+        ),
         device_count=len(settings.devices),
         devices=devices_html,
         token_hint=token_hint,

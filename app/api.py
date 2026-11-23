@@ -14,8 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func, select
 
+from .aggregate import aggregate, bucket_values, parse_aggregates, parse_interval
 from .config import Settings
-from .db import Device, Measurement, Reading, utcnow
+from .db import Device, HourlyStat, Measurement, Reading, utcnow
 from .metrics import extract_metrics, flatten
 
 router = APIRouter()
@@ -177,6 +178,20 @@ def device_metrics(request: Request, ref: str):
     ]
 
 
+@router.post("/api/rollup", tags=["system"], dependencies=[Depends(require_token)])
+def rollup_now(request: Request):
+    """Reduce minute data older than RAW_RETENTION_MONTHS to hourly statistics now
+    (otherwise runs automatically once a day)."""
+    job = request.app.state.rollup
+    result = job.run_once()
+    return {
+        "cutoff": fmt_time(result.get("cutoff"), request.app.state.tz),
+        "hourly_values_written": result.get("hours", 0),
+        "readings_removed": result.get("readings", 0),
+        "error": job.last_error,
+    }
+
+
 @router.post("/api/poll", tags=["system"], dependencies=[Depends(require_token)])
 def poll_now(request: Request):
     """Trigger an immediate poll of the Shelly Cloud."""
@@ -195,10 +210,17 @@ def export(
     metrics: str | None = Query(None, description="Comma separated metric names, wildcards allowed"),
     format: Literal["json", "csv", "csv-wide"] = Query("json"),
     order: Literal["asc", "desc"] = Query("asc"),
-    limit: int = Query(10_000, ge=1, le=MAX_LIMIT, description="Max readings per device"),
+    limit: int = Query(
+        10_000, ge=1, le=MAX_LIMIT, description="Max readings (or time buckets) per device"
+    ),
+    interval: str | None = Query(
+        None, description="Aggregate into time buckets: 15m, 1h, 6h, 1d, 1w, 1mo (needs from/to)"
+    ),
+    agg: str = Query("avg", description="With interval: avg, min, max - comma separated"),
 ):
     """Without `from`/`to`: the latest values of each device.
-    With `from` and/or `to`: all readings in that time range."""
+    With `from` and/or `to`: all readings in that time range.
+    With `interval`: aggregated values per time bucket (e.g. hourly averages)."""
     settings: Settings = request.app.state.settings
     tz: ZoneInfo = request.app.state.tz
     start = parse_time(from_, tz)
@@ -207,11 +229,27 @@ def export(
         raise HTTPException(status_code=400, detail="'from' must be before 'to'")
     metric_filter = split_list(metrics)
     latest_mode = start is None and end is None
+    bucket_interval = aggs = None
+    if interval:
+        if latest_mode:
+            raise HTTPException(status_code=400, detail="'interval' needs 'from' and/or 'to'")
+        try:
+            bucket_interval = parse_interval(interval)
+            aggs = parse_aggregates(agg)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     result = []
+    hourly_hint = False
     with request.app.state.session_factory() as session:
         for device in resolve_devices(session, split_list(devices)):
             view = MetricView(settings, device.id, metric_filter)
+            if bucket_interval is not None:
+                entries = _aggregated_entries(
+                    session, device, view, bucket_interval, aggs, tz, start, end, order, limit
+                )
+                result.append({**device_info(device, tz), "count": len(entries), "readings": entries})
+                continue
             query = select(Reading).where(Reading.device_id == device.id)
             if start:
                 query = query.where(Reading.ts >= start)
@@ -244,6 +282,21 @@ def export(
                 latest = entries[0] if entries else {"ts": None, "values": {}}
                 result.append({**info, **latest})
             else:
+                hourly_until = _minute_data_start(session, device.id)
+                if hourly_until is not None:
+                    info["hourly_only_before"] = fmt_time(hourly_until, tz)
+                    if start is None or start < hourly_until:
+                        in_range = select(HourlyStat.hour).where(
+                            HourlyStat.device_id == device.id, HourlyStat.hour < hourly_until
+                        )
+                        if start:
+                            in_range = in_range.where(
+                                HourlyStat.hour >= start.replace(minute=0, second=0, microsecond=0)
+                            )
+                        if end:
+                            in_range = in_range.where(HourlyStat.hour <= end)
+                        if session.scalar(in_range.limit(1)) is not None:
+                            hourly_hint = True
                 result.append({**info, "count": len(entries), "readings": entries})
 
     meta = {
@@ -251,10 +304,73 @@ def export(
         "from": fmt_time(start, tz),
         "to": fmt_time(end, tz),
         "timezone": settings.timezone,
+        "raw_retention_months": settings.raw_retention_months or None,
     }
+    if hourly_hint:
+        meta["note"] = (
+            "Part of the requested period only exists as hourly statistics "
+            "(see hourly_only_before) - use interval=1h or longer to get it."
+        )
+    if bucket_interval is not None:
+        meta.update({"interval": str(bucket_interval), "agg": aggs})
     if format == "json":
-        return {**meta, "mode": "latest" if latest_mode else "range", "devices": result}
+        mode = "latest" if latest_mode else "aggregate" if bucket_interval else "range"
+        return {**meta, "mode": mode, "devices": result}
     return _csv(result, latest_mode, wide=format == "csv-wide")
+
+
+def _minute_data_start(session, device_id: str) -> datetime | None:
+    """If minute data was removed (RAW_RETENTION_MONTHS): the time before which only
+    hourly statistics exist, else None."""
+    first_hour, last_hour = session.execute(
+        select(func.min(HourlyStat.hour), func.max(HourlyStat.hour)).where(
+            HourlyStat.device_id == device_id
+        )
+    ).one()
+    if first_hour is None:
+        return None
+    first_raw = session.scalar(select(func.min(Reading.ts)).where(Reading.device_id == device_id))
+    if first_raw is None:
+        return last_hour + timedelta(hours=1)
+    first_raw_hour = first_raw.replace(minute=0, second=0, microsecond=0)
+    return first_raw_hour if first_hour < first_raw_hour else None
+
+
+def _known_raw_metrics(session, device_id: str, view: MetricView) -> list[str] | None:
+    """Raw metric names matching the metric filter (None = no filter), so that the
+    database only aggregates what is requested."""
+    if not view.filter:
+        return None
+    latest = session.scalars(
+        select(Reading.id).where(Reading.device_id == device_id).order_by(Reading.ts.desc()).limit(1)
+    ).first()
+    names = set(view.aliases)
+    if latest is not None:
+        names.update(session.scalars(select(Measurement.metric).where(Measurement.reading_id == latest)))
+    return [n for n in names if view.name(n) is not None]
+
+
+def _aggregated_entries(session, device, view, interval, aggs, tz, start, end, order, limit):
+    buckets = aggregate(
+        session, device.id, interval, tz, start, end, _known_raw_metrics(session, device.id, view)
+    )
+    if order == "desc":
+        buckets.reverse()
+    entries = []
+    for bucket_start, readings, stats in buckets[:limit]:
+        values: dict[str, float] = {}
+        for raw, metric_stats in stats.items():
+            name = view.name(raw)
+            if name is None:
+                continue
+            for a, v in bucket_values(metric_stats, aggs).items():
+                values[name if len(aggs) == 1 else f"{name}_{a}"] = v
+        entries.append({
+            "ts": bucket_start.isoformat(timespec="seconds"),
+            "readings": readings,
+            "values": dict(sorted(values.items())),
+        })
+    return entries
 
 
 def _csv(result: list[dict], latest_mode: bool, wide: bool) -> Response:

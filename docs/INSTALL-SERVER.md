@@ -70,6 +70,9 @@ API_TOKEN=<langer-zufälliger-wert>     # z.B. erzeugen mit: openssl rand -hex 3
 
 TIMEZONE=Europe/Berlin
 POLL_INTERVAL_SECONDS=60
+
+# Minutenwerte 18 Monate aufbewahren, danach nur Stundenwerte (0 = nie löschen)
+RAW_RETENTION_MONTHS=18
 ```
 
 `HOST_PORT` wird auf dem Server nicht verwendet. Der Port steht direkt in der `docker-compose.yml`.
@@ -184,18 +187,19 @@ Die Datenbank in `./data` bleibt dabei erhalten. Neue Tabellen oder Spalten legt
 
 ## 10. Backup
 
-Alle Daten liegen in `/opt/shelly-tracker/data/shelly.db`. Eine konsistente Kopie im laufenden
+Alle Daten liegen in `/opt/shelly-tracker/data/shelly.db`. Mit dem Standard
+`RAW_RETENTION_MONTHS=18` bleibt die Datei bei 2 Geräten dauerhaft bei etwa 0,7 GB. Eine konsistente Kopie im laufenden
 Betrieb erzeugt dieser Befehl:
 
 ```bash
-docker compose exec -T shelly-tracker python -c \
+docker compose exec -T -u shelly shelly-tracker python -c \
   "import sqlite3; s=sqlite3.connect('/data/shelly.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d); d.close()"
 ```
 
 Täglich per Cron, z.B. mit `crontab -e`:
 
 ```cron
-15 3 * * * cd /opt/shelly-tracker && docker compose exec -T shelly-tracker python -c "import sqlite3; s=sqlite3.connect('/data/shelly.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d); d.close()" && cp data/backup.db /pfad/zum/backup/shelly-$(date +\%F).db
+15 3 * * * cd /opt/shelly-tracker && docker compose exec -T -u shelly shelly-tracker python -c "import sqlite3; s=sqlite3.connect('/data/shelly.db'); d=sqlite3.connect('/data/backup.db'); s.backup(d); d.close()" && cp data/backup.db /pfad/zum/backup/shelly-$(date +\%F).db
 ```
 
 Zum Wiederherstellen den Container stoppen, die Sicherung als `data/shelly.db` zurückkopieren

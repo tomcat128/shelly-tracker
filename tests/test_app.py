@@ -152,3 +152,207 @@ def test_index_page(env):
     app.state.settings.api_token = "t0ken"
     page = client.get("/")
     assert page.status_code == 200 and "WS90" not in page.text and "geschützt" in page.text
+
+
+# -- schema migration & aggregation -------------------------------------------
+import sqlite3
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from app.db import Device, Measurement, Reading, init_db, make_engine
+
+OLD_SCHEMA = """
+CREATE TABLE devices (id VARCHAR(64) NOT NULL PRIMARY KEY, code VARCHAR(64) NOT NULL, name VARCHAR(255) NOT NULL,
+  model VARCHAR(64), gen VARCHAR(16), online BOOLEAN, active BOOLEAN NOT NULL, last_seen DATETIME,
+  last_raw TEXT, created_at DATETIME NOT NULL);
+CREATE UNIQUE INDEX ix_devices_code ON devices (code);
+CREATE TABLE readings (id INTEGER NOT NULL PRIMARY KEY, device_id VARCHAR(64) NOT NULL REFERENCES devices (id),
+  ts DATETIME NOT NULL, received_at DATETIME NOT NULL, online BOOLEAN, values_hash VARCHAR(64), raw TEXT,
+  CONSTRAINT uq_reading_device_ts UNIQUE (device_id, ts));
+CREATE INDEX ix_reading_device_ts ON readings (device_id, ts);
+CREATE TABLE measurements (reading_id INTEGER NOT NULL REFERENCES readings (id) ON DELETE CASCADE,
+  metric VARCHAR(128) NOT NULL, value FLOAT NOT NULL, PRIMARY KEY (reading_id, metric));
+CREATE INDEX ix_measurement_metric ON measurements (metric);
+INSERT INTO devices VALUES ('d1','D1','',NULL,NULL,1,1,NULL,NULL,'2026-01-01 00:00:00.000000');
+INSERT INTO readings VALUES (1,'d1','2026-01-01 00:00:00.000000','2026-01-01 00:00:00.000000',1,NULL,NULL);
+INSERT INTO measurements VALUES (1,'temperature:0.tC',3.5),(1,'humidity:0.rh',80);
+"""
+
+
+def test_migration_from_old_schema(tmp_path):
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    con.executescript(OLD_SCHEMA)
+    con.close()
+
+    engine = make_engine(f"sqlite:///{path}")
+    init_db(engine)
+    init_db(engine)  # idempotent
+    engine.dispose()
+
+    con = sqlite3.connect(path)
+    ddl = con.execute("select sql from sqlite_master where name='measurements'").fetchone()[0]
+    indexes = {r[0] for r in con.execute("select name from sqlite_master where type='index'")}
+    assert "WITHOUT ROWID" in ddl.upper()
+    assert "ix_measurement_metric" not in indexes and "ix_reading_device_ts" not in indexes
+    assert sorted(con.execute("select metric, value from measurements")) == [
+        ("humidity:0.rh", 80.0), ("temperature:0.tC", 3.5)]
+    assert con.execute("pragma foreign_key_check").fetchall() == []
+
+
+def _fill(app, device_id, start, minutes, value_fn):
+    with app.state.session_factory() as s:
+        for i in range(minutes):
+            r = Reading(device_id=device_id, ts=start + timedelta(minutes=i), received_at=start)
+            r.measurements = [Measurement(metric="temperature:0.tC", value=value_fn(i)),
+                              Measurement(metric="humidity:0.rh", value=50.0)]
+            s.add(r)
+        s.commit()
+
+
+def test_aggregate_hourly(env):
+    client, fake, app = env
+    _fill(app, HT, datetime(2026, 11, 20, 10, 0), 180, lambda i: float(i))  # 3 hours, UTC
+
+    data = client.get("/api/export", params={"devices": "HT1", "from": "2026-11-20",
+                                             "interval": "1h", "agg": "avg,min,max",
+                                             "metrics": "temperature"}).json()
+    assert data["mode"] == "aggregate" and data["interval"] == "1h"
+    rows = data["devices"][0]["readings"]
+    assert [r["ts"] for r in rows] == ["2026-11-20T10:00:00+00:00", "2026-11-20T11:00:00+00:00",
+                                       "2026-11-20T12:00:00+00:00"]
+    assert rows[0]["readings"] == 60
+    assert rows[0]["values"] == {"temperature_avg": 29.5, "temperature_max": 59.0, "temperature_min": 0.0}
+    assert rows[2]["values"]["temperature_min"] == 120.0
+
+    single = client.get("/api/export", params={"devices": "HT1", "from": "2026-11-20",
+                                               "interval": "15m", "order": "desc", "limit": 2}).json()
+    rows = single["devices"][0]["readings"]
+    assert len(rows) == 2 and rows[0]["ts"] == "2026-11-20T12:45:00+00:00"
+    assert rows[0]["values"] == {"humidity": 50.0, "temperature": 172.0}
+
+
+def test_aggregate_daily_local_time_and_csv(env):
+    client, fake, app = env
+    app.state.tz = ZoneInfo("Europe/Berlin")
+    # 22:30-01:30 UTC on 20./21.11. = 23:30-02:30 local -> local day 20.11. gets the first 30 min
+    _fill(app, HT, datetime(2026, 11, 20, 22, 30), 180, lambda i: 1.0 if i < 30 else 2.0)
+
+    data = client.get("/api/export", params={"devices": "HT1", "from": "2026-11-20", "to": "2026-11-21",
+                                             "interval": "1d", "metrics": "temperature"}).json()
+    rows = data["devices"][0]["readings"]
+    assert [(r["ts"], r["readings"], r["values"]["temperature"]) for r in rows] == [
+        ("2026-11-20T00:00:00+01:00", 30, 1.0), ("2026-11-21T00:00:00+01:00", 150, 2.0)]
+
+    month = client.get("/api/export", params={"from": "2026-11-01", "interval": "1mo",
+                                              "devices": "HT1", "format": "csv-wide"}).text
+    lines = month.strip().splitlines()
+    assert lines[0] == "timestamp;device;device_id;humidity;temperature"
+    assert lines[1].startswith("2026-11-01T00:00:00+01:00;HT1;")
+
+
+def test_aggregate_validation(env):
+    client, fake, app = env
+    assert client.get("/api/export", params={"interval": "1h"}).status_code == 400
+    assert client.get("/api/export", params={"from": "1d", "interval": "3x"}).status_code == 400
+    assert client.get("/api/export", params={"from": "1d", "interval": "1h", "agg": "median"}).status_code == 400
+
+
+# -- rollup of old minute data to hourly statistics ----------------------------
+from app.config import load_settings
+from app.db import HourlyStat
+from app.rollup import retention_cutoff, rollup, subtract_months
+
+
+def test_retention_setting(monkeypatch, tmp_path):
+    monkeypatch.setenv("CONFIG_FILE", str(tmp_path / "none.yaml"))
+    monkeypatch.delenv("RAW_RETENTION_MONTHS", raising=False)
+    assert load_settings().raw_retention_months == 18
+    monkeypatch.setenv("RAW_RETENTION_MONTHS", "")
+    assert load_settings().raw_retention_months == 18
+    monkeypatch.setenv("RAW_RETENTION_MONTHS", "24")
+    assert load_settings().raw_retention_months == 24
+    monkeypatch.setenv("RAW_RETENTION_MONTHS", "0")
+    assert load_settings().raw_retention_months == 0
+
+
+def test_subtract_months():
+    assert subtract_months(datetime(2026, 11, 23, 10, 30), 18) == datetime(2025, 5, 23, 10, 30)
+    assert subtract_months(datetime(2026, 5, 31), 3) == datetime(2026, 2, 28)
+    assert retention_cutoff(18, datetime(2026, 11, 23, 10, 30, 5)) == datetime(2025, 5, 23, 10, 0)
+
+
+def test_rollup_replaces_old_minute_data(env):
+    client, fake, app = env
+    now = datetime(2026, 11, 23, 12, 0)
+    old_start = datetime(2025, 5, 20, 22, 30)  # 2,5 h of old data, crosses midnight
+    _fill(app, HT, old_start, 150, lambda i: float(i))
+    _fill(app, HT, datetime(2026, 11, 23, 10, 0), 60, lambda i: 100.0)  # recent
+
+    res = rollup(app.state.session_factory, 18, now=now)
+    # hourly stats for all completed hours (3 old + 1 recent) x 2 metrics; old minute data removed
+    assert res["readings"] == 150 and res["hours"] == 4 * 2
+    assert rollup(app.state.session_factory, 18, now=now)["readings"] == 0  # idempotent
+
+    with app.state.session_factory() as s:
+        assert s.query(Reading).filter(Reading.device_id == HT).count() == 60
+        stats = {(h.hour, h.metric): h for h in s.query(HourlyStat)}
+    first = stats[(datetime(2025, 5, 20, 22, 0), "temperature:0.tC")]
+    assert (first.count, first.sum, first.min, first.max) == (30, sum(range(30)), 0.0, 29.0)
+    last = stats[(datetime(2025, 5, 21, 0, 0), "temperature:0.tC")]
+    assert (last.count, last.min, last.max) == (60, 90.0, 149.0)
+
+    # aggregated export over old (hourly) and recent (minute) data
+    data = client.get("/api/export", params={"devices": "HT1", "from": "2025-05-20", "interval": "1h",
+                                             "metrics": "temperature", "agg": "avg,max"}).json()
+    rows = data["devices"][0]["readings"]
+    assert [(r["ts"], r["readings"]) for r in rows] == [
+        ("2025-05-20T22:00:00+00:00", 30), ("2025-05-20T23:00:00+00:00", 60),
+        ("2025-05-21T00:00:00+00:00", 60), ("2026-11-23T10:00:00+00:00", 60)]
+    assert rows[0]["values"] == {"temperature_avg": 14.5, "temperature_max": 29.0}
+    assert rows[3]["values"] == {"temperature_avg": 100.0, "temperature_max": 100.0}
+
+    yearly = client.get("/api/export", params={"devices": "HT1", "from": "2025-01-01", "interval": "1mo",
+                                               "metrics": "temperature"}).json()
+    assert [r["readings"] for r in yearly["devices"][0]["readings"]] == [150, 60]
+
+    # raw export points to the hourly data
+    raw = client.get("/api/export", params={"devices": "HT1", "from": "2025-05-01"}).json()
+    assert raw["devices"][0]["count"] == 60
+    assert raw["devices"][0]["hourly_only_before"] == "2026-11-23T10:00:00+00:00"
+    assert "interval=1h" in raw["note"]
+    assert "note" not in client.get("/api/export", params={"devices": "HT1", "from": "2026-11-01"}).json()
+
+
+def test_rollup_disabled_keeps_minute_data(env):
+    client, fake, app = env
+    _fill(app, HT, datetime(2020, 1, 1), 10, lambda i: 1.0)
+    res = rollup(app.state.session_factory, 0)
+    assert res["readings"] == 0 and res["hours"] == 2  # hourly stats are still built
+    with app.state.session_factory() as s:
+        assert s.query(Reading).count() == 10
+    raw = client.get("/api/export", params={"devices": "HT1", "from": "2019-12-31"}).json()
+    assert raw["devices"][0]["count"] == 10 and "note" not in raw
+
+
+def test_hourly_stats_give_same_results_as_minute_data(env):
+    client, fake, app = env
+    app.state.tz = ZoneInfo("Europe/Berlin")
+    _fill(app, HT, datetime(2026, 3, 28, 20, 0), 60 * 30, lambda i: (i % 97) / 3)  # crosses DST change
+    queries = [
+        {"interval": "1h", "agg": "avg,min,max"}, {"interval": "6h"}, {"interval": "1d", "agg": "avg,max"},
+        {"interval": "1w"}, {"interval": "1mo", "agg": "min"}, {"interval": "15m"},
+    ]
+    def run():
+        return [client.get("/api/export", params={"devices": "HT1", "from": "2026-03-01", **q}).json()
+                ["devices"][0]["readings"] for q in queries]
+    before = run()
+    assert rollup(app.state.session_factory, 0, now=datetime(2026, 4, 1))["hours"] == 30 * 2
+    assert run() == before
+
+
+def test_rollup_endpoint(env):
+    client, fake, app = env
+    _fill(app, HT, datetime(2020, 1, 1), 10, lambda i: 1.0)
+    res = client.post("/api/rollup").json()
+    assert res["readings_removed"] == 10 and res["hourly_values_written"] == 2 and res["error"] is None

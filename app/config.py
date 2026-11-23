@@ -72,6 +72,7 @@ class Settings:
     skip_unchanged: bool = True
     request_timeout: float = 15.0
     timezone: str = "Europe/Berlin"
+    raw_retention_months: int = 18  # older minute data is reduced to hourly stats; 0 = keep forever
     devices: list[DeviceConfig] = field(default_factory=list)
     global_aliases: dict[str, str] = field(default_factory=dict)
     global_exclude: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDE))
@@ -96,6 +97,16 @@ def _bool(name: str, default: bool) -> bool:
     if value is None or value == "":
         return default
     return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _int(name: str, default: int) -> int:
+    value = os.environ.get(name, "").strip()
+    if value == "":
+        return default
+    number = int(value)
+    if number < 0:
+        raise ValueError(f"{name} must be >= 0")
+    return number
 
 
 def load_devices(path: str) -> tuple[list[DeviceConfig], dict[str, str], list[str] | None]:
@@ -142,6 +153,7 @@ def load_settings() -> Settings:
         skip_unchanged=_bool("SKIP_UNCHANGED", True),
         request_timeout=float(os.environ.get("REQUEST_TIMEOUT_SECONDS", "15")),
         timezone=os.environ.get("TIMEZONE", "Europe/Berlin"),
+        raw_retention_months=_int("RAW_RETENTION_MONTHS", 18),
     )
     devices, aliases, exclude = load_devices(settings.config_file)
     settings.devices = devices
