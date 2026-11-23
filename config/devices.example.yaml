@@ -1,0 +1,42 @@
+# Kopieren nach config/devices.yaml und anpassen.
+#
+# id:    Geräte-ID aus der Shelly-App/Cloud (Einstellungen -> Geräteinformation)
+# code:  Kurzname, über den das Gerät in der API angesprochen wird (eindeutig)
+# name:  Beschreibung (optional)
+#
+# Welche Messwerte es gibt, zeigt nach dem ersten Abruf:
+#   GET /api/devices/<code>/metrics
+# Dort sieht man die Pfade (z.B. "temperature:0.tC"), die man unten als Alias umbenennen kann.
+
+devices:
+  - id: "REPLACE_WS90_ID"
+    code: WS90
+    name: Wetterstation
+    # aliases:             # gerätespezifische Aliase (überschreiben die globalen)
+    #   "bthomesensor:200.value": wind_speed
+
+  - id: "REPLACE_BLU_HT_ID"
+    code: HT1
+    name: BLU H&T ZB Wohnzimmer
+
+# Aliase für alle Geräte: Rohpfad im Status -> Name im Export.
+# Aliase werden erst beim Export angewendet, d.h. sie lassen sich jederzeit ändern
+# und gelten dann auch für bereits gespeicherte Daten.
+aliases:
+  "temperature:0.tC": temperature
+  "temperature:0.tF": temperature_f
+  "humidity:0.rh": humidity
+  "devicepower:0.battery.percent": battery
+  "devicepower:0.battery.V": battery_voltage
+  "illuminance:0.lux": illuminance
+
+# Optional: globale Ausschlussliste ersetzen (Glob-Muster auf den Rohpfad).
+# Standard: sys.*, wifi.*, cloud.*, mqtt.*, ws.*, ble.*, eth.*, script:*, serial, id,
+#           _updated, ts, *.ts, *_ts, *.unixtime, *.id, *.minute_ts, *.by_minute.*
+# exclude:
+#   - "sys.*"
+#   - "wifi.*"
+#
+# Pro Gerät zusätzlich möglich:
+#   exclude: ["*.tF"]      # zusätzlich ausschließen
+#   include: ["sys.uptime"] # trotz Ausschluss speichern

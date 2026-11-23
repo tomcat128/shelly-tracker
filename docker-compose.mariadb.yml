@@ -1,0 +1,23 @@
+# Optional: MariaDB statt SQLite.
+#   docker compose -f docker-compose.yml -f docker-compose.mariadb.yml up -d
+# In .env: DATABASE_URL=mysql+pymysql://shelly:${MARIADB_PASSWORD}@db:3306/shelly
+services:
+  shelly-tracker:
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: shelly
+      MARIADB_USER: shelly
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-change-me}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 10
