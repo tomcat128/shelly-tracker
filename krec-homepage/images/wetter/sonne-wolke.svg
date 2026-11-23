@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke-linecap="round" stroke-linejoin="round">
+  <title>leicht bewölkt</title>
+  <circle cx="9" cy="8.5" r="4" fill="#ffcc33" stroke="#f59e0b" stroke-width="2"/>
+  <path d="M4.40 13.10L2.99 14.51M2.50 8.50L0.50 8.50M4.40 3.90L2.99 2.49M9.00 2.00L9.00 0.00M13.60 3.90L15.01 2.49M15.50 8.50L17.50 8.50" fill="none" stroke="#f59e0b" stroke-width="2"/>
+  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" fill="#e6eaef" stroke="#8792a0" stroke-width="2" transform="translate(4.2 4.6) scale(0.8)" vector-effect="non-scaling-stroke"/>
+</svg>

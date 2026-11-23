@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TESTSEITE Rollsportanlage :: Konstanzer REC</title>
+    <!-- Bootstrap -->
+    <link href="https://www.konstanzer-rec.de/css/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <script src="/js/bootstrap-5.3.2/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://www.konstanzer-rec.de/css/styles.css?d=1795434362">
+    <link rel="stylesheet" href="https://www.konstanzer-rec.de/css/termine.css?d=1795434362">
+    <link rel="stylesheet" href="https://www.konstanzer-rec.de/css/mobile.css?d=1795434362">
+    <!-- Matomo: DSGVO-konform -->
+    <script src="/js/matomo.js"></script>
+    <noscript><p><img referrerpolicy="no-referrer-when-downgrade" src="//matomo.konstanzer-rec.de/matomo.php?idsite=1&amp;rec=1" style="border:0;" alt="" /></p></noscript>
+    <!-- End Matomo Code -->
+    <script src="/js/privacy.js?d=1795434362"></script>
+    <script src="https://www.konstanzer-rec.de/js/mobile.js?d=1795434362"></script>
+</head>
+<body class="###WWW_ID###" id="rollsportanlage">
+    <div class="container">
+        <header class="desktop">
+            <div class="header-inner">
+            <h1>Herzlich Willkommen beim <strong>Konstanzer Roll- und Eissportclub</strong> e.V. (KREC)</h1>
+                <a href="/"><img src="https://www.konstanzer-rec.de/images/Logo_KREC_2026_256px.png" alt="Konstanzer Roll- und Eissportclubs e.V. 1953 | Logo" /></a>
+            </div>
+        </header>
+        <header class="mobile">
+            <div class="mobile-header-inner">
+                <!-- Logo links -->
+                <a href="/" class="mobile-logo">
+                    <img src="https://www.konstanzer-rec.de/images/Logo_KREC_2026_256px.png" alt="Logo">
+                </a>
+                <!-- Titel mittig -->
+                <div class="mobile-title">
+                    <a href="/">Konstanzer Roll- und Eissportclub e.V.</a>
+                </div>
+                <!-- Burger rechts -->
+                <button class="burger" onclick="toggleMobileMenu()" id="burgerBtn">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <!-- Ausklapp-Menü -->
+            <div class="mobile-menu" id="mobileMenu">
+                <a href="/rollkunstlauf/">Rollkunstlauf</a>
+                <a href="/rollhockey/">Rollhockey</a>
+                <a href="/inlinehockey/">Inlinehockey</a>
+                <a href="/eiskunstlauf/">Eiskunstlauf</a>
+                <a href="/rollsportanlage.html" class="more">Rollsportanlage</a>
+                <a href="/satzung.html">Satzung</a>
+                <a href="/kontakt.html" class="more">Kontakt</a>
+                <a href="/datenschutz.html">Datenschutz</a>
+                <a href="/impressum.html">Impressum</a>
+            </div>
+        </header>
+        <div id="menuOverlay" onclick="toggleMobileMenu()"></div>
+        <!-- Navigation direkt unter dem Header -->
+        <nav class="desktop">
+            <div class="row g-0 text-center nav-row">
+                <!-- Startseite (mobil volle Breite) -->
+                <div class="col-12 col-md">
+                    <a href="/" class="btn btn-secondary w-100 btn-lg rounded-0">Startseite</a>
+                </div>
+
+                <!-- Sportarten -->
+                <div class="col-6 col-md">
+                    <a href="/rollkunstlauf/" class="btn btn-primary w-100 btn-lg rounded-0">Rollkunstlauf</a>
+                </div>
+
+                <div class="col-6 col-md">
+                    <a href="/rollhockey/" class="btn btn-success w-100 btn-lg rounded-0">Rollhockey</a>
+                </div>
+
+                <div class="col-6 col-md">
+                    <a href="/inlinehockey/" class="btn btn-warning w-100 btn-lg rounded-0">Inlinehockey</a>
+                </div>
+
+                <div class="col-6 col-md">
+                    <a href="/eiskunstlauf/" class="btn btn-danger w-100 btn-lg rounded-0">Eiskunstlauf</a>
+                </div>
+            </div>
+        </nav>
+        <div class="custom-bar desktop"></div>
+        <main>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<style>
+	#panorama {
+	    width: 100%;
+	    height: 800px; /* oder 100vh */
+	}
+
+	@media (max-width: 600px) {
+	  #panorama {
+	      height: 400px;
+	  }
+	}
+
+</style>
+<!-- ============================================================
+     Shelly-Wetter: ersetzt den bisherigen Block
+     <div class="anschrift-wetter-wrap clearfix"> ... </div>
+     sowie den bisherigen <style>-Teil für #wetter-banner und das
+     <script> mit fetch(/shelly-api/data.php).
+     ============================================================ -->
+<link rel="stylesheet" href="/css/shelly-wetter.css">
+
+<h2 class="mb-4">Rollsportanlage am Tannenhof</h2>
+<div class="standort-info">
+	<div class="anschrift">
+		<p>
+			<strong>Anschrift:</strong><br>
+			Salesianerweg 12<br>
+			78464 Konstanz<br>
+			<a href="#anfahrt">Anfahrtsbeschreibung</a><br>
+		</p>
+		<p>
+			<strong>Lauffläche:</strong><br>
+			20x40m<br>
+			<br>
+			<strong>Beschaffenheit:</strong><br>
+			Beton<br>
+			<br>
+		</p>
+	</div>
+	<div id="hallen-box" class="info-box temp-blau">Lade Hallendaten…</div>
+	<div class="wetter-spalte">
+		<div id="wetter-box" class="info-box">Lade Wetterdaten…</div>
+		<div class="gallery-item" style="width: 400px; max-width: 100%; margin-top: 16px;">
+  <!--
+			<a href="https://upload.konstanzer-rec.de/latest.jpg" class="glightbox" style="border: 1px solid: black;">
+				<img src="https://upload.konstanzer-rec.de/latest.jpg" alt="Rollkunsthalle">
+				<div class="gallery-overlay">
+					Live-Bild vom Hallendach
+				</div>
+			</a>
+-->
+		</div>
+	</div>
+</div>
+
+<script src="/js/shelly-wetter.js" defer></script>
+
+<div class="clearfix"></div>
+<br />
+<h3>360° Panorama unserer Rollsporthalle am Tannenhof</h3>
+<div id="panorama" class="panorama"></div>
+<script>
+    pannellum.viewer('panorama', {
+        type: 'equirectangular',
+        // panorama: 'https://www.konstanzer-rec.de/images/rollsportanlage360.jpg',  // HIER dein 360° Bild einfügen
+        panorama: 'https://www.konstanzer-rec.de/images/Rollsportanlage-360-3_1-90.jpg',  // HIER dein 360° Bild einfügen
+        // panorama: 'https://www.konstanzer-rec.de/images/Rollsportanlage-360-3_3-95.jpg',  // HIER dein 360° Bild einfügen
+		autoLoad: true,
+        compass: false,
+        showZoomCtrl: true,
+        showFullscreenCtrl: true,
+        pitch: 0,
+        yaw: 0,
+        horizonPitch: -1.2,
+        horizonRoll: 0.5
+    });
+</script>
+
+<p>
+	<hr />
+	<a name="anfahrt"></a><h3>Anfahrt</h3>
+</p>
+
+<p>
+	<strong>Mit dem Auto</strong><br>
+	Aus Richtung Innenstadt Konstanz fahren Sie über die Mainaustraße in Richtung Wollmatingen.
+	Biegen Sie in den <strong>Salesianerweg</strong> ab und folgen Sie der Straße bis zur
+	Rollsportanlage am <strong>Tannenhof</strong>. Parkmöglichkeiten befinden sich direkt an der
+	Anlage und in der Umgebung.
+</p>
+
+<p>
+	<strong>Mit öffentlichen Verkehrsmitteln</strong><br>
+	Die Rollsportanlage erreichen Sie bequem mit den Buslinien
+	<strong>1, 4/13, 13/4 und 9B</strong> bis zur Haltestelle <strong>Tannenhof</strong>.
+	Von dort sind es nur wenige Gehminuten bis zur Anlage im Salesianerweg.
+</p>
+
+<p>
+	<strong>Routenplanung</strong><br>
+	<a href="https://www.google.com/maps/dir/?api=1&destination=Salesianerweg+12+78464+Konstanz" target="_blank">
+	Route in Google Maps öffnen
+	</a>
+</p>
+
+<h3 class="mt-4">Karte</h3>
+
+<div class="ratio ratio-16x9">
+    <iframe 
+        src="https://www.google.com/maps?q=Salesianerweg+12+78464+Konstanz&output=embed"
+        style="border:0;"
+        allowfullscreen=""
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/glightbox/dist/js/glightbox.min.js"></script>
+<script>
+  const lightbox = GLightbox({
+    selector: '.glightbox'
+  });
+</script>
+        </main>
+        <!-- Pfeil nach oben -->
+        <div class="text-center my-4">
+          <a href="#top" class="back-to-top" aria-label="Nach oben">▲</a>
+        </div>
+        <footer class="desktop">
+            <div class="row g-2 text-center">
+
+                <div class="col-12 col-md">
+                    <a href="/rollsportanlage.html" class="btn btn-outline-secondary w-100 rounded-3">Rollsportanlage</a>
+                </div>
+
+                <div class="col-12 col-md">
+                    <a href="/satzung.html" class="btn btn-outline-secondary w-100 rounded-3">Satzung</a>
+                </div>
+
+                <div class="col-12 col-md">
+                    <a href="/kontakt.html" class="btn btn-outline-secondary w-100 rounded-3">Kontakt</a>
+                </div>
+
+                <div class="col-12 col-md">
+                    <a href="/datenschutz.html" class="btn btn-outline-secondary w-100 rounded-3">Datenschutz</a>
+                </div>
+
+                <div class="col-12 col-md">
+                    <a href="/impressum.html" class="btn btn-outline-secondary w-100 rounded-3">Impressum</a>
+                </div>
+
+            </div>
+        </footer>
+    </div>
+    <footer class="mobile">
+        <div class="footer-info">
+            <strong>Konstanzer Roll- und Eissportclub e.V.</strong><br>
+            Salesianerweg 12<br>
+            78464 Konstanz<br>
+            <hr>
+            <a href="/kontakt.html">Kontakt</a> | <a href="/datenschutz.html">Datenschutz</a> | <a href="/impressum.html">Impressum</a>
+        </div>
+    </footer>
+    <div id="privacy-banner">
+        Auf dieser Website verwenden wir das Analysewerkzeug "Matomo", das in der aktuellen Einstellung IP-Adressen anonymisiert und keine identifizierbaren Cookies über den Endnutzer speichert. Eine Einwilligung ist daher nicht erforderlich.
+        <br><br>
+        Weitere Informationen entnehmen Sie bitte unserer Datenschutzerklärung.
+        <button onclick="closePrivacyBanner()">OK</button>
+    </div>
+</body>
+</html>

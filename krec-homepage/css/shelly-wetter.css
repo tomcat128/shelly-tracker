@@ -1,0 +1,205 @@
+/* Rollsportanlage: Anschrift | Hallendaten | Wetter  (gehört zu /js/shelly-wetter.js) */
+
+/* ---------- Anschrift | Hallendaten | Wetter ---------- */
+.standort-info {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(280px, 340px) minmax(300px, 400px);
+  grid-template-areas: "anschrift halle wetter";
+  gap: 16px 24px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+.standort-info .anschrift  { grid-area: anschrift; }
+.standort-info #hallen-box { grid-area: halle; }
+.standort-info .wetter-spalte { grid-area: wetter; }
+
+.info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 14px 18px;
+  text-align: left;
+}
+.info-box .box-titel {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.info-box .wert {
+  font-weight: 600;
+}
+.info-box .stand {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  margin-top: 6px;
+}
+.info-box .stand.veraltet {
+  opacity: 1;
+  color: #b3261e;
+  font-weight: 600;
+}
+
+/* ---------- Hallendaten (BLU H&T) ---------- */
+#hallen-box {
+  font-size: 1.5rem;
+}
+#hallen-box .stand { font-size: 0.9rem; }
+
+/* Temperaturfarben (nur Hallendaten) */
+/* < 10 °C: Lila */
+.info-box.temp-lila {
+  background: #f3e5f5;
+  border: 1px solid #ce93d8;
+  color: #4a148c;
+}
+.info-box.temp-lila .box-titel { color: #38006b; }
+.info-box.temp-lila .wert { color: #7b1fa2; }
+
+/* 10-15 °C: Blau */
+.info-box.temp-blau {
+  background: #e3f2fd;
+  border: 1px solid #64b5f6;
+  color: #0d47a1;
+}
+.info-box.temp-blau .box-titel { color: #0b3c8c; }
+.info-box.temp-blau .wert { color: #1565c0; }
+
+/* 15-25 °C: Grün */
+.info-box.temp-gruen {
+  background: #e6f4ea;
+  border: 1px solid #8fcba3;
+  color: #1b4332;
+}
+.info-box.temp-gruen .box-titel { color: #14532d; }
+.info-box.temp-gruen .wert { color: #146c43; }
+
+/* 25-30 °C: Gelb */
+.info-box.temp-gelb {
+  background: #fef7e0;
+  border: 1px solid #f2c94c;
+  color: #7a5c00;
+}
+.info-box.temp-gelb .box-titel { color: #5c4400; }
+.info-box.temp-gelb .wert { color: #8a6d00; }
+
+/* > 30 °C: Rot */
+.info-box.temp-rot {
+  background: #fdecea;
+  border: 1px solid #e8998d;
+  color: #601a15;
+}
+.info-box.temp-rot .box-titel { color: #4d1310; }
+.info-box.temp-rot .wert { color: #b3261e; }
+
+/* Glossy-Kugel hinter dem Luftfeuchtigkeits-Wert */
+.luft-kugel {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-left: 8px;
+  margin-top: -5px;
+  vertical-align: middle;
+  box-shadow:
+    inset -2px -2px 4px rgba(0, 0, 0, 0.35),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.luft-kugel.kugel-rot {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 45%), #e53935;
+}
+.luft-kugel.kugel-gelb {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 45%), #fbc02d;
+}
+.luft-kugel.kugel-gruen {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 45%), #43a047;
+}
+.luft-kugel.kugel-orange {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 45%), #fb8c00;
+}
+
+/* ---------- Wetter (WS90) ---------- */
+#wetter-box {
+  background: #eef3f8;
+  border: 1px solid #b6c7da;
+  color: #1f3347;
+  font-size: 1.05rem;
+}
+#wetter-box .box-titel { color: #16283a; }
+#wetter-box .wert { color: #1b4f80; }
+#wetter-box .temp-gross {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+#wetter-box .temp-gross .wert {
+  font-size: 2.2rem;
+  line-height: 1.1;
+}
+#wetter-box .nebenwert { opacity: 0.85; }
+#wetter-box .gefuehlt { font-size: 1.2rem; }
+#wetter-box .gefuehlt .wert { font-size: inherit; }
+#wetter-box dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 14px;
+  margin: 8px 0 0;
+}
+#wetter-box dt { font-weight: 400; opacity: 0.85; }
+#wetter-box dd { margin: 0; }
+#wetter-box .icon {
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 6px;
+  vertical-align: -0.2em;
+}
+#wetter-box .icon-gross {
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-right: -4px;
+}
+#wetter-box dt { white-space: nowrap; }
+/* Windrose */
+#wetter-box .wind-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+#wetter-box .windrose {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  flex: none;
+}
+#wetter-box .windrose img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#wetter-box .wind-details { display: flex; flex-direction: column; gap: 2px; }
+
+/* Mittlere Breite: Anschrift oben, darunter Hallendaten und Wetter nebeneinander */
+@media (max-width: 991px) {
+  .standort-info {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "anschrift anschrift"
+      "halle     wetter";
+  }
+}
+
+/* Schmal: alles untereinander */
+@media (max-width: 640px) {
+  .standort-info {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "anschrift"
+      "halle"
+      "wetter";
+  }
+  .standort-info .gallery-item { width: 100% !important; }
+}

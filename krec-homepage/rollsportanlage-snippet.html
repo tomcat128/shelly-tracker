@@ -1,0 +1,43 @@
+<!-- ============================================================
+     Shelly-Wetter: ersetzt den bisherigen Block
+     <div class="anschrift-wetter-wrap clearfix"> ... </div>
+     sowie den bisherigen <style>-Teil für #wetter-banner und das
+     <script> mit fetch(/shelly-api/data.php).
+     ============================================================ -->
+<link rel="stylesheet" href="/css/shelly-wetter.css">
+
+<h2 class="mb-4">Rollsportanlage am Tannenhof</h2>
+<div class="standort-info">
+	<div class="anschrift">
+		<p>
+			<strong>Anschrift:</strong><br>
+			Salesianerweg 12<br>
+			78464 Konstanz<br>
+			<a href="#anfahrt">Anfahrtsbeschreibung</a><br>
+		</p>
+		<p>
+			<strong>Lauffläche:</strong><br>
+			20x40m<br>
+			<br>
+			<strong>Beschaffenheit:</strong><br>
+			Beton<br>
+			<br>
+		</p>
+	</div>
+	<div id="hallen-box" class="info-box temp-blau">Lade Hallendaten…</div>
+	<div class="wetter-spalte">
+		<div id="wetter-box" class="info-box">Lade Wetterdaten…</div>
+		<div class="gallery-item" style="width: 400px; max-width: 100%; margin-top: 16px;">
+  <!--
+			<a href="https://upload.konstanzer-rec.de/latest.jpg" class="glightbox" style="border: 1px solid: black;">
+				<img src="https://upload.konstanzer-rec.de/latest.jpg" alt="Rollkunsthalle">
+				<div class="gallery-overlay">
+					Live-Bild vom Hallendach
+				</div>
+			</a>
+-->
+		</div>
+	</div>
+</div>
+
+<script src="/js/shelly-wetter.js" defer></script>

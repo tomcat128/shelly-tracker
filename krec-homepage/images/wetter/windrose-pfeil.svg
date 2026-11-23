@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" width="100" height="100" stroke-linecap="round" stroke-linejoin="round">
+  <title>Windrichtung</title>
+  <path d="M0 -29 L7.5 0 L-7.5 0 Z" fill="#1b4f80" stroke="#1b4f80" stroke-width="1.5"/>
+  <path d="M0 29 L7.5 0 L-7.5 0 Z" fill="#c9d7e5" stroke="#1b4f80" stroke-width="1.5"/>
+  <circle r="3.2" fill="#ffffff" stroke="#1b4f80" stroke-width="1.5"/>
+</svg>

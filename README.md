@@ -201,6 +201,13 @@ docker build -t fehrenbacher/shelly-tracker:latest .
 docker push fehrenbacher/shelly-tracker:latest
 ```
 
+## Homepage-Schnipsel (`krec-homepage/`)
+
+Wetter- und Hallendaten für die Vereinsseite: ein kleines PHP-Skript auf dem Webspace
+holt die letzten Werte über `/api/export` und hält sie 60 Sekunden im Cache, dazu
+HTML-Schnipsel, JavaScript, CSS und Icons. Einbau und lokaler Test stehen in
+[krec-homepage/README.md](krec-homepage/README.md).
+
 ## Entwicklung
 
 ```bash

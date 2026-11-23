@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke-linecap="round" stroke-linejoin="round">
+  <title>sonnig</title>
+  <circle cx="12" cy="12" r="4.5" fill="#ffcc33" stroke="#f59e0b" stroke-width="2"/>
+  <path d="M19.50 12.00L22.50 12.00M17.30 17.30L19.42 19.42M12.00 19.50L12.00 22.50M6.70 17.30L4.58 19.42M4.50 12.00L1.50 12.00M6.70 6.70L4.58 4.58M12.00 4.50L12.00 1.50M17.30 6.70L19.42 4.58" fill="none" stroke="#f59e0b" stroke-width="2"/>
+</svg>

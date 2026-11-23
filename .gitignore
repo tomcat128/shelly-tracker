@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Cache der Homepage-Schnipsel (lokaler Test)
+krec-homepage/shelly-api/shelly-cache.*
