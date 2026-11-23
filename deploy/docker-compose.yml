@@ -1,0 +1,26 @@
+# Shelly Tracker auf einem Server hinter Caddy.
+# Siehe docs/INSTALL-SERVER.md
+services:
+  shelly-tracker:
+    image: fehrenbacher/shelly-tracker:latest
+    container_name: shelly-tracker
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./config:/config:ro
+
+    # --- Variante A: Caddy läuft direkt auf dem Host --------------------------
+    # Nur lokal erreichbar; Caddy leitet von außen weiter.
+    ports:
+      - "127.0.0.1:9090:8000"
+
+    # --- Variante B: Caddy läuft selbst als Container -------------------------
+    # "ports" oben entfernen und stattdessen das Caddy-Netzwerk verwenden
+    # (Name ggf. anpassen: docker network ls).
+    # networks:
+    #   - caddy
+
+# networks:
+#   caddy:
+#     external: true

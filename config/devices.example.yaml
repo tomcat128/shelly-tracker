@@ -23,16 +23,27 @@ devices:
 # Aliase werden erst beim Export angewendet, d.h. sie lassen sich jederzeit ändern
 # und gelten dann auch für bereits gespeicherte Daten.
 aliases:
-  "temperature:0.tC": temperature
-  "temperature:0.tF": temperature_f
-  "humidity:0.rh": humidity
-  "devicepower:0.battery.percent": battery
+  # Shelly BLU H&T (SBHT-203C) und WS90 (SBWS-90CM)
+  "temperature:0.tC": temperature          # °C
+  "temperature:0.tF": temperature_f        # °F
+  "humidity:0.rh": humidity                # %
+  "devicepower:0.battery.percent": battery # %
   "devicepower:0.battery.V": battery_voltage
-  "illuminance:0.lux": illuminance
+  # nur WS90
+  "pressure:0.value": pressure             # hPa
+  "dewpoint:0.value": dewpoint             # °C
+  "illuminance:0.lux": illuminance         # lx
+  "UV:0.value": uv_index
+  "speed:0.value": wind_speed              # m/s
+  "speed:1.value": wind_gust               # m/s (Böe)
+  "direction:0.value": wind_direction      # Grad
+  "precipitation:0.value": rain_total      # mm, aufsummiert
+  "moisture_alarm:0.value": rain_detected  # 1 = Regen erkannt
 
 # Optional: globale Ausschlussliste ersetzen (Glob-Muster auf den Rohpfad).
 # Standard: sys.*, wifi.*, cloud.*, mqtt.*, ws.*, ble.*, eth.*, script:*, serial, id,
-#           _updated, ts, *.ts, *_ts, *.unixtime, *.id, *.minute_ts, *.by_minute.*
+#           reporter.*, packetid:*, fwversion:*, _updated, ts, *.ts, *_ts, *.unixtime,
+#           *.id, *.minute_ts, *.by_minute.*   (Werte -999 = unbekannt werden immer verworfen)
 # exclude:
 #   - "sys.*"
 #   - "wifi.*"

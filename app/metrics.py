@@ -8,6 +8,10 @@ from fnmatch import fnmatchcase
 from typing import Any
 
 
+# Shelly reports unknown/unavailable values as -999 (e.g. precipitation last_1h).
+MISSING_VALUES = {-999.0}
+
+
 def flatten(obj: Any, prefix: str = "") -> dict[str, float]:
     """Return every numeric/boolean leaf as {"path.to.leaf": float}."""
     out: dict[str, float] = {}
@@ -35,6 +39,8 @@ def extract_metrics(
     include = include or []
     result = {}
     for name, value in flatten(status).items():
+        if value in MISSING_VALUES:
+            continue
         if include and matches(name, include):
             result[name] = value
         elif not matches(name, exclude):

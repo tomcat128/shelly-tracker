@@ -20,10 +20,13 @@ docker compose up -d --build
 
 Danach:
 
-- API-Doku (Swagger): <http://localhost:8080/docs>
-- Letzte Werte: <http://localhost:8080/api/export>
+- API-Doku (Swagger): <http://localhost:9090/docs>
+- Letzte Werte: <http://localhost:9090/api/export>
 
 Host und Auth-Key findest du in der Shelly App unter *Benutzereinstellungen → Authorization cloud key*.
+
+**Server-Installation** mit fertigem Image von Docker Hub (`fehrenbacher/shelly-tracker:latest`) hinter
+Caddy: siehe [docs/INSTALL-SERVER.md](docs/INSTALL-SERVER.md).
 
 ## Geräte konfigurieren (`config/devices.yaml`)
 
@@ -76,9 +79,9 @@ Ausgabe erfolgt ebenfalls in dieser Zone.
 Beispiele:
 
 ```bash
-curl 'http://localhost:8080/api/export'
-curl 'http://localhost:8080/api/export?devices=WS90&from=24h'
-curl 'http://localhost:8080/api/export?devices=HT1&from=2026-11-01&to=2026-11-07&format=csv-wide' -o ht1.csv
+curl 'http://localhost:9090/api/export'
+curl 'http://localhost:9090/api/export?devices=WS90&from=24h'
+curl 'http://localhost:9090/api/export?devices=HT1&from=2026-11-01&to=2026-11-07&format=csv-wide' -o ht1.csv
 ```
 
 Antwort (letzte Werte):
@@ -117,7 +120,7 @@ Wenn die App aus dem Internet erreichbar ist, gehört sie hinter einen Reverse-P
 | `STORE_RAW` | `false` | Roh-JSON jeder Messung speichern |
 | `SKIP_UNCHANGED` | `true` | identische Werte ohne Geräte-Zeitstempel nicht erneut speichern |
 | `PUID` / `PGID` | `1000` | Besitzer der Dateien in `./data` |
-| `HOST_PORT` | `8080` | Port auf dem Host |
+| `HOST_PORT` | `9090` | Port auf dem Host |
 
 ## Datenmodell
 
@@ -142,6 +145,13 @@ Alternativ den Container kurz stoppen (`docker compose stop`) und `./data` kopie
 ```bash
 # in .env: DATABASE_URL=mysql+pymysql://shelly:<passwort>@db:3306/shelly  und  MARIADB_PASSWORD=<passwort>
 docker compose -f docker-compose.yml -f docker-compose.mariadb.yml up -d --build
+```
+
+## Docker-Image bauen und veröffentlichen
+
+```bash
+docker build -t fehrenbacher/shelly-tracker:latest .
+docker push fehrenbacher/shelly-tracker:latest
 ```
 
 ## Entwicklung

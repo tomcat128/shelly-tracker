@@ -130,3 +130,13 @@ def test_metrics_endpoint(env):
     assert rows["temperature:0.tC"]["alias"] == "temperature"
     assert rows["sys.uptime"]["stored"] is False
     assert client.get("/api/devices/HT1/raw").json()["sys"]["uptime"] == 100
+
+
+def test_real_ws90_payload_filtering():
+    status = {"precipitation:0": {"id": 0, "value": 8.2, "last_1h": -999, "last_24h": -999},
+              "reporter": {"id": "1415", "rssi": -94}, "packetid:0": {"id": 0, "pid": 97},
+              "fwversion:0": {"id": 0, "version": "1.1.4"}, "pressure_slope:0": {"value": None},
+              "devicepower:0": {"battery": {"V": None, "percent": 93}}, "serial": 59363,
+              "_updated": "2026-11-23 07:53:58"}
+    assert extract_metrics(status, DEFAULT_EXCLUDE) == {
+        "precipitation:0.value": 8.2, "devicepower:0.battery.percent": 93.0}
