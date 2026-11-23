@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <title>leicht bewölkt</title>
-  <circle cx="9" cy="8.5" r="4" fill="#ffcc33" stroke="#f59e0b" stroke-width="2"/>
-  <path d="M4.40 13.10L2.99 14.51M2.50 8.50L0.50 8.50M4.40 3.90L2.99 2.49M9.00 2.00L9.00 0.00M13.60 3.90L15.01 2.49M15.50 8.50L17.50 8.50" fill="none" stroke="#f59e0b" stroke-width="2"/>
-  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" fill="#e6eaef" stroke="#8792a0" stroke-width="2" transform="translate(4.2 4.6) scale(0.8)" vector-effect="non-scaling-stroke"/>
+  <circle cx="23" cy="22" r="15.5" fill="#fde293" opacity="0.75"/>
+  <circle cx="23" cy="22" r="11" fill="#fbbc04"/>
+  <g transform="translate(6 10) scale(0.9)">
+    <g fill="#bfcbd9" transform="translate(0 2.6)"><circle cx="21" cy="36" r="9"/><circle cx="33" cy="27" r="12.5"/><circle cx="44" cy="36.5" r="8.5"/><rect x="21" y="33" width="23" height="12"/></g>
+    <g fill="#ffffff"><circle cx="21" cy="36" r="9"/><circle cx="33" cy="27" r="12.5"/><circle cx="44" cy="36.5" r="8.5"/><rect x="21" y="33" width="23" height="12"/></g>
+  </g>
 </svg>

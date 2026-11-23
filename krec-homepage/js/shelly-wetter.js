@@ -97,10 +97,17 @@
       (text ? ' title="' + text + '"' : ' aria-hidden="true"') + '>';
   }
 
+  // Art des Niederschlags grob nach Temperatur (der Sensor erkennt nur "nass")
+  function niederschlag(w) {
+    if (w.temperatur !== null && w.temperatur <= 0.5) return { icon: 'schnee', text: 'Schnee', aktiv: 'es schneit' };
+    if (w.temperatur !== null && w.temperatur <= 2.5) return { icon: 'schneeregen', text: 'Schneeregen', aktiv: 'Schneeregen' };
+    return { icon: 'regen', text: 'Regen', aktiv: 'es regnet' };
+  }
+
   // Wetterlage aus Regensensor, Wind und Helligkeit abschätzen
   function wetterlage(w) {
     var lux = w.helligkeit_lux;
-    if (w.regen_aktiv === true) return { icon: 'regen', text: 'Regen' };
+    if (w.regen_aktiv === true) return niederschlag(w);
     if (w.beaufort !== null && w.beaufort >= 6) return { icon: 'wind', text: 'windig' };
     if (lux === null) return null;
     if (lux < 20) return { icon: 'mond', text: 'Nacht' };
@@ -146,7 +153,7 @@
 
   function regenText(w) {
     var teile = [];
-    if (w.regen_aktiv === true) teile.push('<span class="wert">es regnet</span>');
+    if (w.regen_aktiv === true) teile.push('<span class="wert">' + niederschlag(w).aktiv + '</span>');
     else if (w.regen_aktiv === false) teile.push('trocken');
     if (w.regen_heute_mm !== null) teile.push('heute ' + zahl(w.regen_heute_mm, 1) + '&nbsp;mm');
     return teile.length ? teile.join(' · ') : '–';
@@ -173,7 +180,7 @@
       : '';
 
     var zeilen = [
-      ['regen', 'Niederschlag', regenText(w)],
+      ['niederschlag', 'Niederschlag', regenText(w)],
       ['tropfen', 'Luftfeuchte', '<span class="wert">' + zahl(w.luftfeuchte, 0) + '&nbsp;%</span>' +
         (w.taupunkt !== null ? ' · Taupunkt ' + zahl(w.taupunkt, 1) + '&nbsp;°C' : '')],
       ['luftdruck', 'Luftdruck', w.luftdruck !== null ? '<span class="wert">' + zahl(w.luftdruck, 0) + '&nbsp;hPa</span>' : '–'],

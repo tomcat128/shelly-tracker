@@ -12,7 +12,7 @@ und keine CSV mehr.
 | `shelly-api/data.php` | `/shelly-api/data.php` (ersetzt das alte Skript) |
 | `css/shelly-wetter.css` | `/css/shelly-wetter.css` |
 | `js/shelly-wetter.js` | `/js/shelly-wetter.js` |
-| `images/wetter/*.svg` | `/images/wetter/` (alle 12 Icons, Pfad steht als `ICON_PFAD` oben im JS) |
+| `images/wetter/*.svg` | `/images/wetter/` (alle 15 Icons, Pfad steht als `ICON_PFAD` oben im JS) |
 | `rollsportanlage-snippet.html` | Inhalt in `rollsportanlage.html` einsetzen |
 | `testseite.html` | nur für den lokalen Test, **nicht hochladen** |
 

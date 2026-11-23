@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>sonnig</title>
+  <defs>
+    <linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#56b0f5"/><stop offset="1" stop-color="#1f6fd1"/></linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#himmel)"/>
+  <circle cx="32" cy="32" r="17.5" fill="#ffe082" opacity="0.55"/>
+  <circle cx="32" cy="32" r="13" fill="#ffc928"/>
+</svg>
