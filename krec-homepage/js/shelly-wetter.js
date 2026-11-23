@@ -9,6 +9,7 @@
   if (!hallenBox && !wetterBox) return;
 
   var VERALTET_NACH_MIN = 30;
+  var ZEIGE_GEFUEHLT = false;  // gefühlte Temperatur vorerst ausgeblendet, true = wieder anzeigen
 
   // Zahl im deutschen Format, z. B. 4,6
   function zahl(wert, stellen) {
@@ -185,7 +186,7 @@
     }
 
     var gefuehlt = '';
-    if (w.gefuehlt !== null) {
+    if (ZEIGE_GEFUEHLT && w.gefuehlt !== null) {
       gefuehlt = '<span class="gefuehlt">Gefühlt <span class="wert">' + zahl(w.gefuehlt, 1) + '&nbsp;°C</span></span>';
     }
     var lage = wetterlage(w);
