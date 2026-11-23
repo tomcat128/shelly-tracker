@@ -20,6 +20,7 @@ docker compose up -d --build
 
 Danach:
 
+- Startseite mit Status und Export-Links: <http://localhost:9090/>
 - API-Doku (Swagger): <http://localhost:9090/docs>
 - Letzte Werte: <http://localhost:9090/api/export>
 

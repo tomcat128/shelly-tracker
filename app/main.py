@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 
 from .api import router
+from .web import router as web_router
 from .config import Settings, load_settings
 from .db import init_db, make_engine
 from .poller import Poller, sync_devices
@@ -68,6 +69,7 @@ def create_app(settings: Settings | None = None, cloud: ShellyCloud | None = Non
         lifespan=lifespan,
     )
     app.include_router(router)
+    app.include_router(web_router)
     return app
 
 

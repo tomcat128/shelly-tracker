@@ -140,3 +140,15 @@ def test_real_ws90_payload_filtering():
               "_updated": "2026-11-23 07:53:58"}
     assert extract_metrics(status, DEFAULT_EXCLUDE) == {
         "precipitation:0.value": 8.2, "devicepower:0.battery.percent": 93.0}
+
+
+def test_index_page(env):
+    client, fake, app = env
+    client.post("/api/poll")
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "text/html" in page.headers["content-type"]
+    assert "badge ok" in page.text and "WS90" in page.text and 'href="api/export"' in page.text
+    app.state.settings.api_token = "t0ken"
+    page = client.get("/")
+    assert page.status_code == 200 and "WS90" not in page.text and "geschützt" in page.text
