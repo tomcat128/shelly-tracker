@@ -9,7 +9,8 @@
   if (!hallenBox && !wetterBox) return;
 
   var VERALTET_NACH_MIN = 30;
-  var ZEIGE_GEFUEHLT = false;  // gefühlte Temperatur vorerst ausgeblendet, true = wieder anzeigen
+  var ZEIGE_GEFUEHLT = true;         // false = gefühlte Temperatur nie anzeigen
+  var GEFUEHLT_AB_DIFFERENZ = 1;     // nur anzeigen, wenn sie mindestens so viele °C abweicht
 
   // Zahl im deutschen Format, z. B. 4,6
   function zahl(wert, stellen) {
@@ -186,8 +187,9 @@
     }
 
     var gefuehlt = '';
-    if (ZEIGE_GEFUEHLT && w.gefuehlt !== null) {
-      gefuehlt = '<span class="gefuehlt">Gefühlt <span class="wert">' + zahl(w.gefuehlt, 1) + '&nbsp;°C</span></span>';
+    if (ZEIGE_GEFUEHLT && w.gefuehlt !== null &&
+        Math.abs(w.gefuehlt - w.temperatur) >= GEFUEHLT_AB_DIFFERENZ) {
+      gefuehlt = '<span class="gefuehlt">(gefühlt ' + zahl(w.gefuehlt, 1) + '&nbsp;°C)</span>';
     }
     var lage = wetterlage(w);
     var unterzeile = [];

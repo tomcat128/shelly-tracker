@@ -140,7 +140,6 @@
 }
 #wetter-box .nebenwert { opacity: 0.85; }
 #wetter-box .gefuehlt { font-size: 1.2rem; }
-#wetter-box .gefuehlt .wert { font-size: inherit; }
 #wetter-box dl {
   display: grid;
   grid-template-columns: auto 1fr;
