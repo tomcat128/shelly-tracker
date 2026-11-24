@@ -444,3 +444,49 @@ def test_poll_trv_from_gateway(tmp_path, monkeypatch):
         assert dev["model"] == "BluTRV"
         assert dev["values"]["temperature"] == 16.5
         assert dev["values"]["target_temperature"] == 18.0
+
+
+# ---------- PIN for the start page ----------
+
+def test_index_pin(env):
+    client, fake, app = env
+    client.post("/api/poll")
+    settings = app.state.settings
+    settings.page_pin = "4711"
+    settings.api_token = "t0ken"
+
+    page = client.get("/").text
+    assert "badge ok" in page and 'name="pin"' in page
+    assert "WS90" not in page and 'href="api/export"' not in page
+
+    wrong = client.post("/login", data={"pin": "1234"}, follow_redirects=False)
+    assert wrong.status_code == 303 and wrong.headers["location"] == "./?pin=falsch"
+    assert "PIN falsch" in client.get("/?pin=falsch").text
+    assert "shelly_tracker_pin" not in client.cookies
+
+    ok = client.post("/login", data={"pin": "4711"}, follow_redirects=False)
+    assert ok.status_code == 303 and "httponly" in ok.headers["set-cookie"].lower()
+    assert "4711" not in ok.headers["set-cookie"]
+    page = client.get("/").text
+    assert "WS90" in page and 'href="api/export"' in page and 'name="pin"' not in page
+    assert "Sperren" in page and "geschützt" not in page
+    # the unlock cookie also opens the token-protected export links
+    assert client.get("/api/export").status_code == 200
+
+    # changing the PIN invalidates the cookie
+    settings.page_pin = "0000"
+    assert "WS90" not in client.get("/").text
+    assert client.get("/api/export").status_code == 401
+
+    client.post("/logout")
+    assert "shelly_tracker_pin" not in client.cookies
+
+
+def test_index_pin_lockout(env):
+    client, fake, app = env
+    app.state.settings.page_pin = "4711"
+    for _ in range(5):
+        client.post("/login", data={"pin": "0"})
+    locked = client.post("/login", data={"pin": "4711"}, follow_redirects=False)
+    assert locked.headers["location"] == "./?pin=gesperrt"
+    assert "shelly_tracker_pin" not in client.cookies

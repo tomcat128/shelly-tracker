@@ -67,6 +67,8 @@ PGID=1000
 
 # Schutz der API, sobald sie aus dem Internet erreichbar ist (siehe Abschnitt 7)
 API_TOKEN=<langer-zufälliger-wert>     # z.B. erzeugen mit: openssl rand -hex 32
+# Startseite zeigt Geräteliste und Export-Links erst nach dieser PIN (leer = ohne PIN)
+PAGE_PIN=
 
 TIMEZONE=Europe/Berlin
 POLL_INTERVAL_SECONDS=60
@@ -148,6 +150,10 @@ Sobald die App über Caddy öffentlich erreichbar ist, **`API_TOKEN` setzen**. D
 - Header `Authorization: Bearer <token>`
 - Header `X-API-Key: <token>`
 - Parameter `?token=<token>`, praktisch für Browser oder Excel. Der Token steht dann aber im Caddy-Access-Log.
+
+Zusätzlich kann `PAGE_PIN` gesetzt werden: Die Startseite zeigt dann nur den Status, Geräteliste
+und Export-Links erst nach Eingabe der PIN. Nach dem Entsperren funktionieren die Export-Links im
+selben Browser auch ohne Token. Änderung der `.env` übernehmen: `docker compose up -d --force-recreate`.
 
 Statt des Tokens oder zusätzlich dazu kann Caddy einen Passwortschutz vorschalten:
 

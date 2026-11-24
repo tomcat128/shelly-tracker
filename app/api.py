@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func, select
 
+from .auth import page_unlocked
 from .aggregate import aggregate, bucket_values, parse_aggregates, parse_interval
 from .config import Settings
 from .db import Device, HourlyStat, Measurement, Reading, utcnow
@@ -29,7 +30,7 @@ _UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days", "w": "weeks
 # -- helpers -----------------------------------------------------------------
 def require_token(request: Request) -> None:
     token = request.app.state.settings.api_token
-    if not token:
+    if not token or page_unlocked(request):  # unlocked start page: export links work
         return
     auth = request.headers.get("authorization", "")
     supplied = (

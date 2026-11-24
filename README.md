@@ -154,6 +154,12 @@ Weitere Endpunkte: `GET /health`, `GET /api/devices`, `POST /api/poll` (sofort a
 
 Ist `API_TOKEN` gesetzt, brauchen alle `/api/*`-Endpunkte den Token als
 `Authorization: Bearer <token>`, als `X-API-Key: <token>` oder als `?token=<token>`.
+
+Ist `PAGE_PIN` gesetzt, zeigt die Startseite nur den Status. Geräteliste und Export-Links
+erscheinen erst nach Eingabe der PIN. Der Browser bekommt dann für 30 Tage ein Cookie, mit dem
+auch die Export-Links ohne `API_TOKEN` funktionieren. „Sperren“ unten auf der Seite löscht es,
+eine neue PIN macht alle Cookies ungültig. Nach 5 falschen PINs ist die Eingabe 5 Minuten gesperrt.
+
 Wenn die App aus dem Internet erreichbar ist, gehört sie hinter einen Reverse-Proxy mit HTTPS.
 
 ## Konfiguration (`.env`)
@@ -167,6 +173,7 @@ Wenn die App aus dem Internet erreichbar ist, gehört sie hinter einen Reverse-P
 | `DATABASE_URL` | `sqlite:////data/shelly.db` | SQLAlchemy-URL |
 | `TIMEZONE` | `Europe/Berlin` | Zeitzone für Ein-/Ausgabe |
 | `API_TOKEN` | leer | Token für die API |
+| `PAGE_PIN` | leer | PIN für Geräteliste und Export-Links auf der Startseite; leer = ohne PIN |
 | `STORE_RAW` | `false` | Roh-JSON jeder Messung speichern |
 | `RAW_RETENTION_MONTHS` | `18` | Minutenwerte so viele Monate aufbewahren, danach nur Stundenwerte; `0` = nie löschen |
 | `SKIP_UNCHANGED` | `true` | identische Werte ohne Geräte-Zeitstempel nicht erneut speichern |

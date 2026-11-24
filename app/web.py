@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from html import escape
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 
+from . import auth
 from .api import fmt_time
 from .db import Device, Reading, utcnow
 
@@ -61,6 +63,13 @@ PAGE = """<!doctype html>
   a:hover {{ text-decoration: underline; }}
   code {{ font-family: ui-monospace, monospace; font-size: 13px; }}
   footer {{ color: var(--muted); font-size: 13px; margin-top: 24px; }}
+  form.pin {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+  form.pin input {{ font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+                   background: var(--bg); color: var(--text); width: 10em; }}
+  button {{ font: inherit; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px;
+           background: var(--card); color: var(--text); cursor: pointer; }}
+  button.link {{ border: 0; padding: 0; background: none; color: var(--link); font-size: inherit; }}
+  footer form {{ display: inline; }}
 </style>
 </head>
 <body>
@@ -81,7 +90,17 @@ PAGE = """<!doctype html>
 
   {devices}
 
-  <section class="card">
+  {export}
+
+  {pin_form}
+
+  <footer>Seite aktualisiert sich jede Minute · Stand {now}{logout}</footer>
+</main>
+</body>
+</html>
+"""
+
+EXPORT = """<section class="card">
     <h2>Export</h2>
     {token_hint}
     <ul class="links">
@@ -91,13 +110,23 @@ PAGE = """<!doctype html>
       <li><a href="docs">API-Dokumentation</a> <span class="muted">(alle Parameter, zum Ausprobieren)</span></li>
       <li><a href="health">Healthcheck</a> <span class="muted">(JSON)</span></li>
     </ul>
-  </section>
+  </section>"""
 
-  <footer>Seite aktualisiert sich jede Minute · Stand {now}</footer>
-</main>
-</body>
-</html>
-"""
+PIN_FORM = """<section class="card">
+    <h2>Geräte und Export</h2>
+    <p class="muted">Geräteliste und Export-Links sind mit einer PIN geschützt.</p>
+    <form class="pin" method="post" action="login">
+      <input type="password" name="pin" inputmode="numeric" autocomplete="current-password"
+             placeholder="PIN" aria-label="PIN" required autofocus>
+      <button type="submit">Anzeigen</button>
+    </form>
+    {message}
+  </section>"""
+
+PIN_MESSAGES = {
+    "falsch": "PIN falsch.",
+    "gesperrt": f"Zu viele Fehlversuche. Bitte in {auth.FAILURE_WINDOW // 60} Minuten erneut versuchen.",
+}
 
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -107,6 +136,11 @@ def index(request: Request) -> HTMLResponse:
     poller = state.poller
     tz = state.tz
     protected = bool(settings.api_token)
+    pin_required = bool(settings.page_pin)
+    unlocked = auth.page_unlocked(request)
+    # With a PIN: details only after unlocking. Without: as before (devices only if the API is public)
+    show_devices = unlocked if pin_required else not protected
+    show_export = unlocked or not pin_required
 
     if poller.last_error:
         badge = '<span class="badge bad">Fehler</span>'
@@ -119,7 +153,7 @@ def index(request: Request) -> HTMLResponse:
     )
 
     devices_html = ""
-    if not protected:  # device details only when the API itself is public
+    if show_devices:
         with state.session_factory() as session:
             counts = dict(
                 session.execute(
@@ -150,7 +184,18 @@ def index(request: Request) -> HTMLResponse:
     token_hint = (
         '<p class="muted">Die API ist geschützt: Token als <code>?token=…</code> anhängen '
         "oder als Header <code>Authorization: Bearer …</code> senden.</p>"
-        if protected
+        if protected and show_export and not unlocked
+        else ""
+    )
+    pin_form = ""
+    if pin_required and not unlocked:
+        message = PIN_MESSAGES.get(request.query_params.get("pin", ""), "")
+        pin_form = PIN_FORM.format(
+            message=f'<div class="error">{escape(message)}</div>' if message else ""
+        )
+    logout = (
+        ' · <form method="post" action="logout"><button class="link" type="submit">Sperren</button></form>'
+        if unlocked
         else ""
     )
 
@@ -166,10 +211,40 @@ def index(request: Request) -> HTMLResponse:
         ),
         device_count=len(settings.devices),
         devices=devices_html,
-        token_hint=token_hint,
+        export=EXPORT.format(token_hint=token_hint) if show_export else "",
+        pin_form=pin_form,
+        logout=logout,
         now=escape(_short(fmt_time(utcnow(), tz))),
     )
     return HTMLResponse(html)
+
+
+@router.post("/login", include_in_schema=False)
+async def login(request: Request) -> RedirectResponse:
+    settings = request.app.state.settings
+    if not settings.page_pin:
+        return RedirectResponse("./", status_code=303)
+    if auth.login_locked(request):
+        return RedirectResponse("./?pin=gesperrt", status_code=303)
+    form = parse_qs((await request.body()).decode("utf-8", "replace"))
+    pin = (form.get("pin") or [""])[0]
+    if not auth.pin_correct(settings, pin):
+        auth.record_failure(request)
+        return RedirectResponse("./?pin=falsch", status_code=303)
+    auth.clear_failures(request)
+    response = RedirectResponse("./", status_code=303)
+    response.set_cookie(
+        auth.COOKIE_NAME, auth.unlock_token(settings), max_age=auth.COOKIE_MAX_AGE,
+        httponly=True, samesite="lax", secure=auth.is_https(request),
+    )
+    return response
+
+
+@router.post("/logout", include_in_schema=False)
+def logout(request: Request) -> RedirectResponse:
+    response = RedirectResponse("./", status_code=303)
+    response.delete_cookie(auth.COOKIE_NAME)
+    return response
 
 
 def _online(value: bool | None) -> str:

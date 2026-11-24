@@ -88,6 +88,7 @@ class Settings:
     database_url: str = "sqlite:////data/shelly.db"
     config_file: str = "/config/devices.yaml"
     api_token: str = ""
+    page_pin: str = ""  # if set, the start page shows devices/export links only after this PIN
     store_raw: bool = False
     skip_unchanged: bool = True
     request_timeout: float = 15.0
@@ -178,6 +179,7 @@ def load_settings() -> Settings:
         database_url=os.environ.get("DATABASE_URL", "sqlite:////data/shelly.db"),
         config_file=os.environ.get("CONFIG_FILE", "/config/devices.yaml"),
         api_token=os.environ.get("API_TOKEN", ""),
+        page_pin=os.environ.get("PAGE_PIN", "").strip(),
         store_raw=_bool("STORE_RAW", False),
         skip_unchanged=_bool("SKIP_UNCHANGED", True),
         request_timeout=float(os.environ.get("REQUEST_TIMEOUT_SECONDS", "15")),
