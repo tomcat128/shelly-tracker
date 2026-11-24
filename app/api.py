@@ -203,7 +203,9 @@ def poll_now(request: Request):
 @router.get("/api/export", tags=["export"], dependencies=[Depends(require_token)])
 def export(
     request: Request,
-    devices: str | None = Query(None, description="Comma separated device codes or ids"),
+    devices: list[str] | None = Query(
+        None, description="Device codes or ids: comma separated and/or repeated (devices=A&devices=B)"
+    ),
     from_: str | None = Query(
         None, alias="from", description="Start: ISO date/datetime, unix seconds or relative (24h, 7d)"
     ),
@@ -243,7 +245,7 @@ def export(
     result = []
     hourly_hint = False
     with request.app.state.session_factory() as session:
-        for device in resolve_devices(session, split_list(devices)):
+        for device in resolve_devices(session, split_list(",".join(devices or []))):
             view = MetricView(settings, device.id, metric_filter)
             if bucket_interval is not None:
                 entries = _aggregated_entries(

@@ -1,6 +1,7 @@
 """Small HTML start page: health status, devices and links to the export."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from html import escape
 from urllib.parse import parse_qs
 
@@ -70,6 +71,16 @@ PAGE = """<!doctype html>
            background: var(--card); color: var(--text); cursor: pointer; }}
   button.link {{ border: 0; padding: 0; background: none; color: var(--link); font-size: inherit; }}
   footer form {{ display: inline; }}
+  form.export {{ margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
+                display: grid; gap: 12px; }}
+  form.export h3 {{ font-size: 14px; margin: 0; }}
+  form.export fieldset {{ border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }}
+  form.export legend {{ color: var(--muted); font-size: 13px; padding: 0; margin-bottom: 4px; }}
+  form.export label {{ display: inline-flex; align-items: center; gap: 6px; }}
+  form.export input:not([type=checkbox]), form.export select {{
+    font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--text); }}
+  form.export .hint {{ color: var(--muted); font-size: 13px; }}
 </style>
 </head>
 <body>
@@ -110,6 +121,36 @@ EXPORT = """<section class="card">
       <li><a href="docs">API-Dokumentation</a> <span class="muted">(alle Parameter, zum Ausprobieren)</span></li>
       <li><a href="health">Healthcheck</a> <span class="muted">(JSON)</span></li>
     </ul>
+    <form class="export" method="get" action="api/export">
+      <h3>Eigener Export</h3>
+      <fieldset>
+        <legend>{device_legend}</legend>
+        {device_choices}
+      </fieldset>
+      <fieldset>
+        <legend>Zeitraum (leer = nur letzte Werte)</legend>
+        <label>von <input type="date" name="from" value="{default_from}"></label>
+        <label>bis <input type="date" name="to" value="{default_to}"></label>
+      </fieldset>
+      <fieldset>
+        <legend>Ausgabe</legend>
+        <label>Werte <select name="interval">
+          <option value="">alle Messungen</option>
+          <option value="15m">je 15 Minuten</option>
+          <option value="1h">je Stunde</option>
+          <option value="1d">je Tag</option>
+        </select></label>
+        <input type="hidden" name="agg" value="avg,min,max">
+        <label>Format <select name="format">
+          <option value="csv-wide">CSV für Excel</option>
+          <option value="json">JSON</option>
+          <option value="csv">CSV (eine Zeile pro Wert)</option>
+        </select></label>
+        {token_field}
+      </fieldset>
+      <div><button type="submit">Daten holen</button>
+        <span class="hint">„je Stunde/Tag“ liefert Mittel, Minimum und Maximum</span></div>
+    </form>
   </section>"""
 
 PIN_FORM = """<section class="card">
@@ -211,7 +252,10 @@ def index(request: Request) -> HTMLResponse:
         ),
         device_count=len(settings.devices),
         devices=devices_html,
-        export=EXPORT.format(token_hint=token_hint) if show_export else "",
+        export=_export_card(settings, tz, token_hint, need_token=protected and not unlocked,
+                            list_devices=show_devices)
+        if show_export
+        else "",
         pin_form=pin_form,
         logout=logout,
         now=escape(_short(fmt_time(utcnow(), tz))),
@@ -245,6 +289,35 @@ def logout(request: Request) -> RedirectResponse:
     response = RedirectResponse("./", status_code=303)
     response.delete_cookie(auth.COOKIE_NAME)
     return response
+
+
+def _export_card(settings, tz, token_hint: str, need_token: bool, list_devices: bool) -> str:
+    today = datetime.now(tz).date()
+    if list_devices:
+        legend = "Geräte (keins angehakt = alle)"
+        choices = "".join(
+            f'<label><input type="checkbox" name="devices" value="{escape(d.code)}"> '
+            f'<b>{escape(d.code)}</b>{" <span class=muted>" + escape(d.name) + "</span>" if d.name else ""}'
+            "</label>"
+            for d in sorted(settings.devices, key=lambda d: d.code.lower())
+        )
+    else:  # the page must not reveal the devices: enter the codes instead
+        legend = "Geräte (Codes kommagetrennt, leer = alle)"
+        choices = ('<input type="text" name="devices" placeholder="Code1,Code2" '
+                   'aria-label="Gerätecodes, kommagetrennt">')
+    token_field = (
+        '<label>Token <input type="password" name="token" autocomplete="off" required></label>'
+        if need_token
+        else ""
+    )
+    return EXPORT.format(
+        token_hint=token_hint,
+        device_legend=legend,
+        device_choices=choices or '<span class="muted">Keine Geräte konfiguriert</span>',
+        default_from=(today - timedelta(days=7)).isoformat(),
+        default_to=today.isoformat(),
+        token_field=token_field,
+    )
 
 
 def _online(value: bool | None) -> str:

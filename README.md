@@ -92,7 +92,7 @@ zusätzlich die Gateway-Einstellungen (nur mit `SHELLY_API_VERSION=v2`).
 | Parameter  | Beschreibung | Beispiel |
 |------------|--------------|----------|
 | *(keine)*  | letzte Werte aller Geräte | `/api/export` |
-| `devices`  | Gerätecodes oder IDs, kommagetrennt | `devices=WS90,HT1` |
+| `devices`  | Gerätecodes oder IDs, kommagetrennt oder mehrfach angegeben (ohne = alle) | `devices=WS90,HT1` oder `devices=WS90&devices=HT1` |
 | `from`     | Beginn: ISO-Datum/-Zeit, Unix-Sekunden oder relativ (`30m`, `24h`, `7d`, `2w`) | `from=2026-11-01` |
 | `to`       | Ende (ein reines Datum zählt inklusive des ganzen Tages) | `to=2026-11-20` |
 | `metrics`  | Messwerte (Alias oder Rohpfad), Wildcards erlaubt | `metrics=temperature,wind*` |
@@ -101,6 +101,9 @@ zusätzlich die Gateway-Einstellungen (nur mit `SHELLY_API_VERSION=v2`).
 | `limit`    | max. Messungen bzw. Zeitabschnitte pro Gerät (Standard 10000) | `limit=500` |
 | `interval` | Werte zu Zeitabschnitten zusammenfassen: `15m`, `1h`, `6h`, `1d`, `1w`, `1mo` (braucht `from`/`to`) | `interval=1h` |
 | `agg`      | mit `interval`: `avg` (Standard), `min`, `max`, kommagetrennt kombinierbar | `agg=avg,min,max` |
+
+Auf der Startseite stellt das Formular „Eigener Export“ solche Abfragen zusammen: Geräte
+anhaken, Zeitraum und Format wählen.
 
 Sobald `from` oder `to` angegeben ist, wird der Zeitraum geliefert, sonst nur der letzte Wert.
 Zeitangaben ohne Zeitzone werden in `TIMEZONE` (Standard `Europe/Berlin`) interpretiert, und die

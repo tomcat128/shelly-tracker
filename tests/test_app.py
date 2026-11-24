@@ -490,3 +490,24 @@ def test_index_pin_lockout(env):
     locked = client.post("/login", data={"pin": "4711"}, follow_redirects=False)
     assert locked.headers["location"] == "./?pin=gesperrt"
     assert "shelly_tracker_pin" not in client.cookies
+
+
+def test_export_selected_devices(env):
+    client, fake, app = env
+    client.post("/api/poll")
+    for params in ({"devices": "WS90,HT1"}, [("devices", "WS90"), ("devices", "HT1")]):
+        codes = [d["code"] for d in client.get("/api/export", params=params).json()["devices"]]
+        assert codes == ["HT1", "WS90"]
+    one = client.get("/api/export", params=[("devices", "ws90"), ("from", "30d"), ("to", "")])
+    assert [d["code"] for d in one.json()["devices"]] == ["WS90"]
+    assert client.get("/api/export", params=[("devices", "WS90"), ("devices", "nope")]).status_code == 404
+
+
+def test_index_export_form(env):
+    client, fake, app = env
+    page = client.get("/").text
+    assert '<form class="export" method="get" action="api/export">' in page
+    assert 'name="devices" value="HT1"' in page and 'name="devices" value="WS90"' in page
+    assert 'name="token"' not in page
+    app.state.settings.api_token = "t0ken"  # no PIN: the form needs the token
+    assert 'name="token"' in client.get("/").text
