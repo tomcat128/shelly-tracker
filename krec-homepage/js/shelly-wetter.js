@@ -163,7 +163,7 @@
       if (w.boeen_kmh !== null && w.boeen_kmh >= 10) {  // kleine Böen nicht erwähnen
         zeilen.push('Böen bis ' + zahl(w.boeen_kmh, 0) + '&nbsp;km/h');
       }
-      zeilen.push('<span class="nebenwert">' + BEAUFORT_NAMEN[w.beaufort] +
+      zeilen.push('<span class="nebenwert">' + w.beaufort + '&nbsp;Bft · ' + BEAUFORT_NAMEN[w.beaufort] +
         ' (' + BEAUFORT_KMH[w.beaufort] + '&nbsp;km/h)</span>');
     }
     return '<div class="wind-block">' + windrose(w) +
@@ -175,7 +175,7 @@
   function regenText(w) {
     var teile = [];
     if (w.regen_aktiv === true) teile.push('<span class="wert">' + niederschlag(w).aktiv + '</span>');
-    else if (w.regen_aktiv === false) teile.push('trocken');
+    else if (w.regen_aktiv === false) teile.push(w.sensor_nass ? 'kein Regen' : 'trocken');
     if (w.regen_heute_mm !== null) teile.push('heute ' + zahl(w.regen_heute_mm, 1) + '&nbsp;mm');
     return teile.length ? teile.join(' · ') : '–';
   }

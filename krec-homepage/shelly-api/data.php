@@ -32,6 +32,9 @@ const WETTER_CODE = 'WS90';  // Wetterstation
 // Cache-Dauer in Sekunden
 const CACHE_SECONDS = 60;
 
+// Zeitraum, in dem der Regenzähler gestiegen sein muss, damit "es regnet" angezeigt wird
+const REGEN_FENSTER = '1h';
+
 // Höhe der Wetterstation über dem Meer in Metern.
 // Damit wird der Luftdruck auf Meereshöhe umgerechnet,
 // so wie ihn Wetterberichte angeben.
@@ -218,6 +221,34 @@ function buildData(): array
         // Tageswerte sind optional, die aktuellen Werte reichen
     }
 
+    // Regenmenge der letzten Stunde. Der Regensensor meldet "nass" auch dann noch,
+    // wenn es längst aufgehört hat (die Oberfläche trocknet bei Kälte stundenlang nicht ab).
+    // Als "es regnet" zählt deshalb nur, wenn der Zähler in dieser Zeit gestiegen ist.
+    $rainLastHour = null;
+    try {
+        $recent  = trackerGet('/api/export?' . http_build_query([
+            'devices' => WETTER_CODE,
+            'from'    => REGEN_FENSTER,
+            'metrics' => 'rain_total',
+        ]));
+        $wsRecent = findDevice($recent, WETTER_CODE);
+        $prev = null;
+        $rainLastHour = 0.0;
+        foreach ($wsRecent['readings'] ?? [] as $reading) {
+            $value = $reading['values']['rain_total'] ?? null;
+            if (!is_numeric($value)) {
+                continue;
+            }
+            // nur Anstiege zählen, damit ein zurückgesetzter Zähler nicht als Regen gilt
+            if ($prev !== null && $value > $prev) {
+                $rainLastHour += $value - $prev;
+            }
+            $prev = (float)$value;
+        }
+    } catch (RuntimeException $e) {
+        // ohne Verlauf bleibt nur die Meldung des Regensensors
+    }
+
     $result = [
         'erzeugt' => (new DateTime('now', new DateTimeZone(ZEITZONE)))->format(DATE_ATOM),
         'halle'   => null,
@@ -248,6 +279,9 @@ function buildData(): array
         $uv    = num($v['uv_index'] ?? null);
         $rain  = num($v['rain_total'] ?? null);
         $rainMin = num($day['rain_total_min'] ?? null);
+        $nass  = isset($v['rain_detected']) ? ((float)$v['rain_detected'] > 0) : null;
+        // Ohne Verlauf (Abruf fehlgeschlagen) wie bisher nur nach dem Sensor gehen
+        $regnet = $nass === null ? null : ($nass && ($rainLastHour === null || $rainLastHour > 0));
 
         $result['wetter'] = [
             'name'              => $ws['name'] ?? null,
@@ -265,7 +299,9 @@ function buildData(): array
             'beaufort'          => $wind !== null ? beaufort($wind) : null,
             'wind_richtung_grad' => $dir,
             'wind_richtung'     => $dir !== null ? himmelsrichtung($dir) : null,
-            'regen_aktiv'       => isset($v['rain_detected']) ? ((float)$v['rain_detected'] > 0) : null,
+            'regen_aktiv'       => $regnet,
+            'sensor_nass'       => $nass,
+            'regen_letzte_stunde_mm' => $rainLastHour !== null ? round($rainLastHour, 1) : null,
             // Regenzähler läuft fortlaufend hoch: Menge heute = aktueller Stand - Stand um Mitternacht
             'regen_heute_mm'    => ($rain !== null && $rainMin !== null) ? round(max(0, $rain - $rainMin), 1) : null,
             'uv_index'          => $uv,
