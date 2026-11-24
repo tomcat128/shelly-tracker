@@ -58,6 +58,33 @@ GET /api/devices/WS90/raw       # letztes Roh-JSON aus der Cloud
 dann auch für bereits gespeicherte Daten. Nach Änderungen an `devices.yaml` den Container neu
 starten: `docker compose restart`.
 
+### Steckdosen (Plug M Gen3, Outdoor Plug S Gen3, …)
+
+Werden wie jedes andere Gerät mit ihrer Geräte-ID eingetragen. Gespeichert werden Leistung,
+Spannung, Strom, Frequenz, Schaltzustand, Gerätetemperatur und der Energiezähler
+(`switch:0.aenergy.total` in Wh, läuft fortlaufend hoch). Den Verbrauch pro Tag liefert
+`interval=1d&agg=min,max&metrics=energy_total` (Max − Min). Die Leistung ist ein Momentanwert
+zum Abrufzeitpunkt.
+
+### Shelly BLU TRV
+
+Ein BLU TRV ist in der Shelly Cloud kein eigenes Gerät, sondern Teil des **BLU Gateway Gen3**
+(Komponente `blutrv:200`, `blutrv:201`, …). Eingetragen wird deshalb die ID des Gateways plus
+die Nummer der Komponente:
+
+```yaml
+  - id: "b08184e7c6b0"   # Geräte-ID des BLU Gateway Gen3
+    trv: 200             # Komponente blutrv:200
+    code: TRV1
+    name: Heizkörper Umkleide
+```
+
+Jeder TRV wird so zu einem eigenen Gerät mit Raumtemperatur (`temperature:0.tC`),
+Solltemperatur (`trv:0.target_C`), Ventilöffnung in % (`trv:0.pos`), Batterie und Funksignal.
+Raum- und Solltemperatur kommen aus den BTHome-Werten, die der TRV etwa jede Minute sendet.
+Die übrigen Werte aktualisiert das Gateway seltener. Dafür liest der Tracker einmal pro Stunde
+zusätzlich die Gateway-Einstellungen (nur mit `SHELLY_API_VERSION=v2`).
+
 ## Export-Schnittstelle
 
 `GET /api/export`

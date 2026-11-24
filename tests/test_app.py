@@ -356,3 +356,91 @@ def test_rollup_endpoint(env):
     _fill(app, HT, datetime(2020, 1, 1), 10, lambda i: 1.0)
     res = client.post("/api/rollup").json()
     assert res["readings_removed"] == 10 and res["hourly_values_written"] == 2 and res["error"] is None
+
+
+# ---------- BLU TRV at a BLU Gateway Gen3 ----------
+
+GW = "b08184e7c6b0"
+GW_STATUS = {
+    "ts": 1795505246.5,
+    "blutrv:200": {"id": 200, "last_updated_ts": 1795505246, "rssi": -50, "battery": 90},
+    "blutrv_rinfo:200": {"device_info": {"model": "BluTRV"}},
+    "blutrv_rstatus:200": {"ts": 1795503592, "status": {
+        "sys": {"uptime": 5, "unixtime": 1795503583},
+        "temperature:0": {"id": 0, "tC": 16.73, "tF": 62.12, "errors": []},
+        "trv:0": {"id": 0, "pos": 12, "steps": 375695, "current_C": 16.78, "target_C": 15,
+                  "schedule_rev": 15, "errors": []}}},
+    "bthomesensor:202": {"id": 202, "last_updated_ts": 1795505246, "value": 18},
+    "bthomesensor:203": {"id": 203, "last_updated_ts": 1795505246, "value": 16.5},
+    "bthomesensor:204": {"id": 204, "last_updated_ts": 1795505246, "value": 21.0},
+}
+GW_SETTINGS = {
+    "blutrv:200": {"id": 200, "addr": "f8:44:77:2a:4d:e9", "temp_sensors": []},
+    "bthomesensor:202": {"addr": "f8:44:77:2a:4d:e9", "obj_id": 69, "idx": 0},
+    "bthomesensor:203": {"addr": "f8:44:77:2a:4d:e9", "obj_id": 69, "idx": 1},
+    "bthomesensor:204": {"addr": "28:68:47:eb:0d:b9", "obj_id": 69, "idx": 1},  # other TRV
+}
+
+
+def test_blutrv_status_prefers_newer_bthome_values():
+    from app.blutrv import trv_status
+
+    status, online, model = trv_status(GW_STATUS, 200, GW_SETTINGS, now=1795505300)
+    assert online and model == "BluTRV"
+    assert extract_metrics(status, DEFAULT_EXCLUDE) == {
+        "temperature:0.tC": 16.5, "temperature:0.tF": 61.7, "trv:0.pos": 12.0,
+        "trv:0.current_C": 16.5, "trv:0.target_C": 18.0,
+        "devicepower:0.battery.percent": 90.0, "rssi": -50.0}
+    assert device_timestamp(status).isoformat() == "2026-11-24T07:27:26"
+
+    # without settings (or with older BTHome values) the full TRV status is used
+    status, _, _ = trv_status(GW_STATUS, 200, None, now=1795505300)
+    assert status["trv:0"]["target_C"] == 15 and status["temperature:0"]["tC"] == 16.73
+    # no BLE packet for hours -> offline; unknown component -> None
+    assert trv_status(GW_STATUS, 200, GW_SETTINGS, now=1795505246 + 3 * 3600)[1] is False
+    assert trv_status(GW_STATUS, 201, GW_SETTINGS) is None
+
+
+def test_trv_config(tmp_path):
+    from app.config import load_devices
+
+    file = tmp_path / "devices.yaml"
+    file.write_text(f"devices:\n  - {{id: '{GW.upper()}', trv: 200, code: TRV1}}\n"
+                    f"  - {{id: '{GW}', trv: 201, code: TRV2}}\n")
+    devices, _, _ = load_devices(str(file))
+    assert [(d.id, d.cloud_id, d.trv) for d in devices] == [
+        (f"{GW}:blutrv:200", GW, 200), (f"{GW}:blutrv:201", GW, 201)]
+
+
+def test_poll_trv_from_gateway(tmp_path, monkeypatch):
+    from app.config import trv_device_id
+
+    monkeypatch.setattr("app.shelly.MIN_REQUEST_GAP", 0)
+    requests = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        assert body["ids"] == [GW]
+        key = body["select"][0]
+        value = GW_STATUS if key == "status" else GW_SETTINGS
+        return httpx.Response(200, json=[{"id": GW, "code": "S3GW-1DBT001", "gen": "G2",
+                                          "online": 1, key: value}])
+
+    settings = Settings(
+        shelly_host="cloud.example", shelly_auth_key="secret",
+        database_url=f"sqlite:///{tmp_path}/test.db", timezone="UTC",
+        devices=[DeviceConfig(id=trv_device_id(GW, 200), cloud_id=GW, trv=200, code="TRV1")],
+        global_aliases={"temperature:0.tC": "temperature", "trv:0.target_C": "target_temperature"},
+    )
+    cloud = ShellyCloud(settings.base_url, "secret", transport=httpx.MockTransport(handler))
+    app = create_app(settings, cloud=cloud, start_poller=False)
+    with TestClient(app) as client:
+        assert client.post("/api/poll").json()["stored"] == 1
+        client.post("/api/poll")
+        # one status request per poll, settings only once (cached)
+        assert [r["select"] for r in requests] == [["status"], ["settings"], ["status"]]
+        dev = client.get("/api/export", params={"devices": "TRV1"}).json()["devices"][0]
+        assert dev["model"] == "BluTRV"
+        assert dev["values"]["temperature"] == 16.5
+        assert dev["values"]["target_temperature"] == 18.0

@@ -4,17 +4,23 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from .blutrv import trv_status
 from .config import DeviceConfig, Settings
 from .db import Device, Measurement, Reading, utcnow
 from .metrics import device_timestamp, extract_metrics, values_hash
 from .shelly import DeviceStatus, ShellyCloud
 
 log = logging.getLogger(__name__)
+
+# Gateway settings (which BTHome sensor belongs to which BLU TRV) rarely change
+GATEWAY_SETTINGS_MAX_AGE = 3600
+GATEWAY_SETTINGS_RETRY = 300
 
 
 def sync_devices(session_factory: sessionmaker, devices: list[DeviceConfig]) -> None:
@@ -53,6 +59,8 @@ class Poller:
         self._thread: threading.Thread | None = None
         self.last_run = None
         self.last_error: str | None = None
+        self._gw_settings: dict[str, dict] = {}
+        self._gw_settings_due = 0.0
 
     # -- lifecycle ---------------------------------------------------------
     def start(self) -> None:
@@ -78,36 +86,75 @@ class Poller:
     def poll_once(self) -> int:
         """Fetch all configured devices once. Returns the number of new readings stored."""
         with self._lock:
-            device_cfgs = {d.id: d for d in self.settings.devices}
-            if not device_cfgs:
+            by_cloud_id: dict[str, list[DeviceConfig]] = {}
+            for cfg in self.settings.devices:
+                by_cloud_id.setdefault(cfg.cloud_id, []).append(cfg)
+            if not by_cloud_id:
                 log.warning("No devices configured (%s)", self.settings.config_file)
                 return 0
             try:
-                statuses = self.cloud.get_statuses(list(device_cfgs))
+                statuses = self.cloud.get_statuses(list(by_cloud_id))
             except Exception as exc:  # noqa: BLE001 - keep the loop alive
                 self.last_error = str(exc)
                 log.error("Polling Shelly Cloud failed: %s", exc)
                 return 0
+            gateways = [cid for cid, cfgs in by_cloud_id.items() if any(c.trv is not None for c in cfgs)]
+            gw_settings = self._gateway_settings(gateways)
 
-            stored = 0
+            stored = devices = 0
             for st in statuses:
-                cfg = device_cfgs.get(st.id)
-                if cfg is None:
+                cfgs = by_cloud_id.get(st.id)
+                if cfgs is None:
                     log.warning("Cloud returned unknown device id %s", st.id)
                     continue
-                try:
-                    with self.session_factory() as session:
-                        stored += int(self._store(session, cfg, st))
-                except Exception as exc:  # noqa: BLE001
-                    log.exception("Storing status of %s failed: %s", cfg.code, exc)
+                for cfg in cfgs:
+                    dev_st = st if cfg.trv is None else self._trv_status(st, cfg, gw_settings.get(st.id))
+                    if dev_st is None:
+                        log.warning("Gateway %s has no BLU TRV blutrv:%s (%s)", st.id, cfg.trv, cfg.code)
+                        continue
+                    devices += 1
+                    try:
+                        with self.session_factory() as session:
+                            stored += int(self._store(session, cfg, dev_st))
+                    except Exception as exc:  # noqa: BLE001
+                        log.exception("Storing status of %s failed: %s", cfg.code, exc)
 
-            missing = set(device_cfgs) - {s.id for s in statuses}
+            missing = set(by_cloud_id) - {s.id for s in statuses}
             if missing:
                 log.warning("No status returned for: %s", ", ".join(sorted(missing)))
             self.last_run = utcnow()
             self.last_error = None
-            log.info("Poll done: %d device(s), %d new reading(s)", len(statuses), stored)
+            log.info("Poll done: %d device(s), %d new reading(s)", devices, stored)
             return stored
+
+    def _gateway_settings(self, gateway_ids: list[str]) -> dict[str, dict]:
+        """Settings of the BLU gateways, cached; empty if they cannot be fetched."""
+        if not gateway_ids:
+            return {}
+        if time.monotonic() >= self._gw_settings_due or not set(gateway_ids) <= set(self._gw_settings):
+            try:
+                self._gw_settings.update(self.cloud.get_settings(gateway_ids))
+                self._gw_settings_due = time.monotonic() + GATEWAY_SETTINGS_MAX_AGE
+            except Exception as exc:  # noqa: BLE001 - TRVs still work from their full status
+                log.warning("Fetching gateway settings failed: %s", exc)
+                self._gw_settings_due = time.monotonic() + GATEWAY_SETTINGS_RETRY
+            for gid in gateway_ids:
+                self._gw_settings.setdefault(gid, {})
+        return self._gw_settings
+
+    @staticmethod
+    def _trv_status(gw: DeviceStatus, cfg: DeviceConfig, settings: dict | None) -> DeviceStatus | None:
+        result = trv_status(gw.status, cfg.trv, settings)
+        if result is None:
+            return None
+        status, online, model = result
+        return DeviceStatus(
+            id=cfg.id,
+            online=online and gw.online is not False,
+            status=status,
+            model=model or "BluTRV",
+            gen="GBLE",
+        )
 
     def _store(self, session: Session, cfg: DeviceConfig, st: DeviceStatus) -> bool:
         now = utcnow()

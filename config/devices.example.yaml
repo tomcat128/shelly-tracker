@@ -19,6 +19,19 @@ devices:
     code: HT1
     name: BLU H&T ZB Wohnzimmer
 
+  - id: "REPLACE_PLUG_ID"  # Shelly Plug M Gen3, Outdoor Plug S Gen3, ...
+    code: PLUG1
+    name: Steckdose Kühlschrank
+
+  # Shelly BLU TRV: kein eigenes Cloud-Gerät, sondern Teil des BLU Gateway Gen3.
+  # id  = Geräte-ID des Gateways
+  # trv = Nummer der Komponente blutrv:<n> am Gateway (200, 201, ...),
+  #       zu sehen unter GET /api/devices/<code>/raw oder in der Gateway-Weboberfläche
+  - id: "REPLACE_GATEWAY_ID"
+    trv: 200
+    code: TRV1
+    name: Heizkörper Umkleide
+
 # Aliase für alle Geräte: Rohpfad im Status -> Name im Export.
 # Aliase werden erst beim Export angewendet, d.h. sie lassen sich jederzeit ändern
 # und gelten dann auch für bereits gespeicherte Daten.
@@ -40,10 +53,27 @@ aliases:
   "precipitation:0.value": rain_total      # mm, aufsummiert
   "moisture_alarm:0.value": rain_detected  # 1 = Regen erkannt
 
+  # Steckdosen (Plug M Gen3, Outdoor Plug S Gen3, ...)
+  "switch:0.apower": power                  # W, Momentanwert
+  "switch:0.aenergy.total": energy_total    # Wh, aufsummiert (Verbrauch = Max - Min)
+  "switch:0.ret_aenergy.total": energy_returned  # Wh, eingespeist
+  "switch:0.voltage": voltage               # V
+  "switch:0.current": current               # A
+  "switch:0.freq": frequency                # Hz
+  "switch:0.output": output                 # 1 = eingeschaltet
+  "switch:0.temperature.tC": device_temperature  # °C im Gerät
+  "switch:0.temperature.tF": device_temperature_f
+  # BLU TRV (Raumtemperatur = temperature, Batterie = battery, siehe oben)
+  "trv:0.target_C": target_temperature      # °C Solltemperatur
+  "trv:0.current_C": control_temperature    # °C, nach der geregelt wird (ggf. externer Sensor)
+  "trv:0.pos": valve_position               # % Ventilöffnung
+  "rssi": rssi                              # dBm Funksignal
+
 # Optional: globale Ausschlussliste ersetzen (Glob-Muster auf den Rohpfad).
 # Standard: sys.*, wifi.*, cloud.*, mqtt.*, ws.*, ble.*, eth.*, script:*, serial, id,
 #           reporter.*, packetid:*, fwversion:*, _updated, ts, *.ts, *_ts, *.unixtime,
-#           *.id, *.minute_ts, *.by_minute.*   (Werte -999 = unbekannt werden immer verworfen)
+#           *.id, *.minute_ts, *.by_minute.*, matter.*, knx.*, plugs_ui.*, *.counts.*,
+#           trv:*.steps, *.schedule_rev   (Werte -999 = unbekannt werden immer verworfen)
 # exclude:
 #   - "sys.*"
 #   - "wifi.*"

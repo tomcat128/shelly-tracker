@@ -93,6 +93,24 @@ class ShellyCloud:
             for item in data
         ]
 
+    def get_settings(self, device_ids: list[str]) -> dict[str, dict]:
+        """Device settings by id (v2 only; v1 has no batch call for it)."""
+        if self.api_version == "v1":
+            return {}
+        result: dict[str, dict] = {}
+        for i in range(0, len(device_ids), V2_MAX_IDS):
+            resp = self._post(
+                "/v2/devices/api/get",
+                params={"auth_key": self.auth_key},
+                json={"ids": device_ids[i : i + V2_MAX_IDS], "select": ["settings"]},
+            )
+            data = resp.json()
+            if not isinstance(data, list):
+                raise ShellyCloudError(f"Unexpected v2 response: {str(data)[:300]}")
+            for item in data:
+                result[normalize_device_id(item.get("id", ""))] = item.get("settings") or {}
+        return result
+
     def _get_v1(self, device_id: str) -> DeviceStatus | None:
         resp = self._post(
             "/device/status", data={"id": device_id, "auth_key": self.auth_key}

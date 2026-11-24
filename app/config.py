@@ -30,6 +30,14 @@ DEFAULT_EXCLUDE = [
     "*.id",
     "*.minute_ts",
     "*.by_minute.*",
+    # Plugs (Gen3): Matter/KNX state, LED ring, switching counters
+    "matter.*",
+    "knx.*",
+    "plugs_ui.*",
+    "*.counts.*",
+    # BLU TRV: motor step counter and schedule revision
+    "trv:*.steps",
+    "*.schedule_rev",
 ]
 
 
@@ -57,6 +65,18 @@ class DeviceConfig:
     aliases: dict[str, str] = field(default_factory=dict)
     include: list[str] = field(default_factory=list)
     exclude: list[str] = field(default_factory=list)
+    # Id the Shelly Cloud knows; differs from `id` for a BLU TRV (then: the gateway id)
+    cloud_id: str = ""
+    trv: int | None = None  # BLU TRV: component number at the gateway (blutrv:<n>)
+
+    def __post_init__(self) -> None:
+        if not self.cloud_id:
+            self.cloud_id = self.id
+
+
+def trv_device_id(gateway_id: str, component: int) -> str:
+    """Id under which a BLU TRV of a gateway is stored."""
+    return f"{normalize_device_id(gateway_id)}:blutrv:{component}"
 
 
 @dataclass
@@ -124,9 +144,18 @@ def load_devices(path: str) -> tuple[list[DeviceConfig], dict[str, str], list[st
         if code.lower() in seen_codes:
             raise ValueError(f"Duplicate device code: {code}")
         seen_codes.add(code.lower())
+        cloud_id = normalize_device_id(entry["id"])
+        trv = entry.get("trv")
+        if trv is not None:
+            try:
+                trv = int(trv)
+            except (TypeError, ValueError):
+                raise ValueError(f"'trv' must be a number like 200: {entry!r}") from None
         devices.append(
             DeviceConfig(
-                id=normalize_device_id(entry["id"]),
+                id=trv_device_id(cloud_id, trv) if trv is not None else cloud_id,
+                cloud_id=cloud_id,
+                trv=trv,
                 code=code,
                 name=str(entry.get("name") or ""),
                 aliases={str(k): str(v) for k, v in (entry.get("aliases") or {}).items()},
