@@ -45,6 +45,8 @@
   font-size: 1.5rem;
 }
 #hallen-box .stand { font-size: 0.9rem; }
+/* Lade-/Fehlerhinweis so groß wie in der Wetter-Box */
+#hallen-box .box-hinweis { font-size: 1.05rem; }
 
 /* Temperaturfarben (nur Hallendaten) */
 /* < 10 °C: Lila */

@@ -142,18 +142,22 @@ function himmelsrichtung(float $grad): string
     return $namen[(int)round(fmod($grad + 360, 360) / 22.5) % 16];
 }
 
-/** Gefühlte Temperatur: Windchill bei Kälte und Wind, Hitzeindex bei Hitze, sonst die gemessene Temperatur */
+/**
+ * Gefühlte Temperatur:
+ * - Hitzeindex bei Hitze (ab 27 °C und 40 % Luftfeuchte)
+ * - sonst "Apparent Temperature" nach Steadman (Australian Bureau of Meteorology),
+ *   berücksichtigt Luftfeuchte und auch schwachen Wind
+ */
 function gefuehlt(?float $t, ?float $rh, ?float $windMs): ?float
 {
     if ($t === null) {
         return null;
     }
-    $kmh = ($windMs ?? 0) * 3.6;
-    if ($t <= 10 && $kmh >= 5) {
-        $v = pow($kmh, 0.16);
-        return round(13.12 + 0.6215 * $t - 11.37 * $v + 0.3965 * $t * $v, 1);
+    if ($t < 27 && $rh !== null) {
+        $e = $rh / 100 * 6.105 * exp(17.27 * $t / (237.7 + $t)); // Dampfdruck in hPa
+        return round($t + 0.33 * $e - 0.70 * ($windMs ?? 0) - 4.00, 1);
     }
-    if ($t >= 27 && $rh !== null && $rh >= 40) {
+    if ($rh !== null && $rh >= 40) {
         $f  = $t * 9 / 5 + 32;
         $hi = -42.379 + 2.04901523 * $f + 10.14333127 * $rh - 0.22475541 * $f * $rh
             - 0.00683783 * $f * $f - 0.05481717 * $rh * $rh + 0.00122874 * $f * $f * $rh

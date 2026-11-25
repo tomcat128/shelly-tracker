@@ -59,7 +59,7 @@
   // ---------- Hallendaten (BLU H&T) ----------
   function zeigeHalle(h) {
     if (!h || h.temperatur === null || h.luftfeuchte === null) {
-      hallenBox.textContent = 'Hallendaten aktuell nicht verfügbar';
+      hallenBox.innerHTML = '<span class="box-hinweis">Hallendaten aktuell nicht verfügbar</span>';
       return;
     }
     var temp = h.temperatur;
@@ -241,7 +241,7 @@
         if (wetterBox) zeigeWetter(daten.wetter);
       })
       .catch(function (err) {
-        if (hallenBox) hallenBox.textContent = 'Hallendaten aktuell nicht verfügbar';
+        if (hallenBox) hallenBox.innerHTML = '<span class="box-hinweis">Hallendaten aktuell nicht verfügbar</span>';
         if (wetterBox) wetterBox.textContent = 'Wetterdaten aktuell nicht verfügbar';
         console.error('Shelly-Daten:', err);
       });
